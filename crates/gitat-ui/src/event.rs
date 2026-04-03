@@ -320,10 +320,8 @@ fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
     match result {
         Ok(()) => {
             app.refresh(runner);
-            // Reload diff for the same file
-            let staged_after = is_staged; // If we unstaged, check unstaged diff; if staged, check staged
-            let reload_staged = !staged_after; // After staging a hunk, the remaining unstaged diff
-            match gitat_core::diff::get_diff_for_file(runner, &entry.path, reload_staged) {
+            // After staging, show remaining unstaged diff; after unstaging, show remaining staged diff
+            match gitat_core::diff::get_diff_for_file(runner, &entry.path, !is_staged) {
                 Ok(diff) => {
                     if diff.is_empty() || diff.iter().all(|f| f.hunks.is_empty()) {
                         app.current_diff = None;
