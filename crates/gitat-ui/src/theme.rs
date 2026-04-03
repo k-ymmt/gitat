@@ -8,6 +8,7 @@ impl Theme {
     pub fn file_staged() -> Style { Style::new().fg(Color::Green) }
     pub fn file_unstaged() -> Style { Style::new().fg(Color::Red) }
     pub fn file_untracked() -> Style { Style::new().fg(Color::Gray) }
+    pub fn file_added() -> Style { Style::new().fg(Color::Green) }
     pub fn diff_added() -> Style { Style::new().fg(Color::Green).bg(Color::Rgb(28, 61, 28)) }
     pub fn diff_removed() -> Style { Style::new().fg(Color::Red).bg(Color::Rgb(61, 28, 28)) }
     pub fn diff_word_added() -> Style { Style::new().fg(Color::Green).bg(Color::Rgb(44, 107, 44)) }
