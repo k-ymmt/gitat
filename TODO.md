@@ -11,10 +11,19 @@
 - [ ] Diff のコンテキスト折りたたみ — 変更のない領域を折りたたんで表示
 - [ ] `stage_hunk` — スペックに記載があるが `stage_file`/`unstage_file` のみ実装
 
+## コミット詳細画面の改善
+
+- [ ] `FileChangeStatus` に `Copied` バリアントを追加 — `git diff-tree` の `C` ステータスが現在 `Modified` にフォールバックしている
+- [ ] リネーム時の旧パス情報を保持 — `CommitFileEntry` に `old_path: Option<String>` を追加し「旧名 → 新名」表示を可能にする
+- [ ] j/k ナビゲーション時の不要な diff リロードを回避 — 選択が変わらない場合はスキップする最適化
+
 ## テスト
 
-- [x] `insta` スナップショットテストを追加（diff ウィジェットやビュー向け、dev-dep は追加済み）
 - [ ] 統合テスト: ステージング後の diff 読み込み、タブ切り替え時の状態保持
+- [ ] ビュー全体のスナップショットテスト（`views/status`, `views/log`, `views/branches` の複合レイアウト）
+- [ ] コミット詳細画面のスナップショットテスト（メタデータ + ファイル一覧 + diff パネルのレイアウト）
+- [ ] `assert_yaml_snapshot!` への移行検討（serde を dev-dep に追加してスナップショットの可読性向上）
+- [ ] `cargo-insta` CLI 導入（`cargo insta review` による対話的スナップショット承認）
 
 ## Post-MVP
 
