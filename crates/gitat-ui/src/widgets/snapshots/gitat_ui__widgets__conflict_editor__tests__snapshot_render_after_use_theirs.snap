@@ -1,0 +1,21 @@
+---
+source: crates/gitat-ui/src/widgets/conflict_editor.rs
+assertion_line: 324
+expression: buffer_to_string(&buf)
+---
+ Conflict: test.rs — 0/1 resolved
+┌ OURS ──────────────────────┐┌ THEIRS ────────────────────┐
+│ours_line                   ││theirs_line                 │
+│                            ││                            │
+│                            ││                            │
+│                            ││                            │
+│                            ││                            │
+│                            ││                            │
+└────────────────────────────┘└────────────────────────────┘
+┌ RESULT ──────────────────────────────────────────────────┐
+│line1                                                     │
+│theirs_line                                               │
+│line3                                                     │
+│                                                          │
+│                                                          │
+└──────────────────────────────────────────────────────────┘

@@ -209,6 +209,23 @@ impl StatefulWidget for ConflictEditor<'_> {
 mod tests {
     use super::*;
     use gitat_core::conflict::{ConflictFile, ConflictRegion};
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Buffer;
+    use ratatui::Terminal;
+
+    fn buffer_to_string(buf: &Buffer) -> String {
+        let mut s = String::new();
+        for y in buf.area.y..buf.area.y + buf.area.height {
+            for x in buf.area.x..buf.area.x + buf.area.width {
+                let cell = buf.cell((x, y)).unwrap();
+                s.push_str(cell.symbol());
+            }
+            let trimmed = s.trim_end_matches(' ');
+            s.truncate(trimmed.len());
+            s.push('\n');
+        }
+        s
+    }
 
     fn make_test_conflict() -> ConflictFile {
         ConflictFile {
@@ -272,5 +289,100 @@ mod tests {
         state.use_ours(&file);
         // First should still be theirs, second should be ours
         assert_eq!(state.result_lines, vec!["b", "c"]);
+    }
+
+    #[test]
+    fn snapshot_render_initial_ours() {
+        let backend = TestBackend::new(60, 16);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let file = make_test_conflict();
+        let mut state = ConflictEditorState::from_conflict_file(&file);
+        terminal
+            .draw(|f| {
+                let widget = ConflictEditor::new(&file);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_after_use_theirs() {
+        let backend = TestBackend::new(60, 16);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let file = make_test_conflict();
+        let mut state = ConflictEditorState::from_conflict_file(&file);
+        state.use_theirs(&file);
+        terminal
+            .draw(|f| {
+                let widget = ConflictEditor::new(&file);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_multiple_conflicts() {
+        let backend = TestBackend::new(70, 18);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let file = ConflictFile {
+            path: "multi.rs".to_string(),
+            regions: vec![
+                ConflictRegion::Clean(vec!["header".to_string()]),
+                ConflictRegion::Conflict {
+                    ours: vec!["our_first".to_string(), "our_first_2".to_string()],
+                    theirs: vec!["their_first".to_string()],
+                },
+                ConflictRegion::Clean(vec!["middle".to_string()]),
+                ConflictRegion::Conflict {
+                    ours: vec!["our_second".to_string()],
+                    theirs: vec!["their_second".to_string(), "their_second_2".to_string()],
+                },
+                ConflictRegion::Clean(vec!["footer".to_string()]),
+            ],
+        };
+        let mut state = ConflictEditorState::from_conflict_file(&file);
+        terminal
+            .draw(|f| {
+                let widget = ConflictEditor::new(&file);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_second_conflict_with_theirs() {
+        let backend = TestBackend::new(70, 18);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let file = ConflictFile {
+            path: "multi.rs".to_string(),
+            regions: vec![
+                ConflictRegion::Conflict {
+                    ours: vec!["a".to_string()],
+                    theirs: vec!["b".to_string()],
+                },
+                ConflictRegion::Conflict {
+                    ours: vec!["c".to_string()],
+                    theirs: vec!["d".to_string()],
+                },
+            ],
+        };
+        let mut state = ConflictEditorState::from_conflict_file(&file);
+        // Navigate to second conflict, choose theirs
+        state.next_conflict();
+        state.use_theirs(&file);
+        terminal
+            .draw(|f| {
+                let widget = ConflictEditor::new(&file);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
     }
 }

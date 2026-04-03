@@ -1,0 +1,43 @@
+---
+source: crates/gitat-core/src/conflict.rs
+assertion_line: 187
+expression: result
+---
+ConflictFile {
+    path: "multi.rs",
+    regions: [
+        Clean(
+            [
+                "header",
+            ],
+        ),
+        Conflict {
+            ours: [
+                "a1",
+                "a2",
+            ],
+            theirs: [
+                "b1",
+            ],
+        },
+        Clean(
+            [
+                "middle",
+            ],
+        ),
+        Conflict {
+            ours: [
+                "c1",
+            ],
+            theirs: [
+                "d1",
+                "d2",
+            ],
+        },
+        Clean(
+            [
+                "footer",
+            ],
+        ),
+    ],
+}

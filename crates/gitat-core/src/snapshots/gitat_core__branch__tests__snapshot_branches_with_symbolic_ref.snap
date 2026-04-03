@@ -1,0 +1,21 @@
+---
+source: crates/gitat-core/src/branch.rs
+assertion_line: 100
+expression: result
+---
+[
+    BranchInfo {
+        name: "main",
+        is_current: true,
+        upstream: None,
+        short_hash: "",
+        last_commit: "         abc1234 latest commit",
+    },
+    BranchInfo {
+        name: "feature",
+        is_current: false,
+        upstream: None,
+        short_hash: "",
+        last_commit: "      def5678 wip feature",
+    },
+]

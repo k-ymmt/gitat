@@ -270,4 +270,96 @@ new file mode 100644
         assert_eq!(result[0].old_path, "/dev/null");
         assert_eq!(result[0].new_path, "new.rs");
     }
+
+    #[test]
+    fn snapshot_single_file_diff() {
+        let input = "\
+diff --git a/src/main.rs b/src/main.rs
+index abc123..def456 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,3 +1,4 @@
+ fn main() {
+-    println!(\"hello\");
++    let msg = \"hello\";
++    println!(\"{msg}\");
+ }
+";
+        let result = parse_diff(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn snapshot_new_file_diff() {
+        let input = "\
+diff --git a/new.rs b/new.rs
+new file mode 100644
+--- /dev/null
++++ b/new.rs
+@@ -0,0 +1,3 @@
++use std::io;
++fn hello() {}
++fn world() {}
+";
+        let result = parse_diff(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn snapshot_deleted_file_diff() {
+        let input = "\
+diff --git a/old.rs b/old.rs
+deleted file mode 100644
+--- a/old.rs
++++ /dev/null
+@@ -1,2 +0,0 @@
+-fn deprecated() {}
+-fn remove_me() {}
+";
+        let result = parse_diff(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn snapshot_multiple_files_diff() {
+        let input = "\
+diff --git a/a.rs b/a.rs
+--- a/a.rs
++++ b/a.rs
+@@ -1,2 +1,2 @@
+ fn a() {
+-    old_a();
++    new_a();
+ }
+diff --git a/b.rs b/b.rs
+--- a/b.rs
++++ b/b.rs
+@@ -1,1 +1,2 @@
+ fn b() {}
++fn b2() {}
+";
+        let result = parse_diff(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn snapshot_multiple_hunks_diff() {
+        let input = "\
+diff --git a/lib.rs b/lib.rs
+--- a/lib.rs
++++ b/lib.rs
+@@ -1,3 +1,3 @@
+ fn first() {
+-    old1();
++    new1();
+ }
+@@ -10,3 +10,3 @@
+ fn second() {
+-    old2();
++    new2();
+ }
+";
+        let result = parse_diff(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
 }

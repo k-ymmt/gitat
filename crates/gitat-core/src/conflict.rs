@@ -140,4 +140,50 @@ d
         let result = parse_conflict_markers("f.rs", content).unwrap();
         assert_eq!(result.regions.len(), 3);
     }
+
+    #[test]
+    fn snapshot_no_conflicts() {
+        let content = "line1\nline2\nline3\n";
+        let result = parse_conflict_markers("clean.rs", content).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn snapshot_single_conflict() {
+        let content = "\
+line1
+<<<<<<< HEAD
+our change
+our change 2
+=======
+their change
+>>>>>>> feature
+line3
+";
+        let result = parse_conflict_markers("file.rs", content).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn snapshot_multiple_conflicts() {
+        let content = "\
+header
+<<<<<<< HEAD
+a1
+a2
+=======
+b1
+>>>>>>> feat
+middle
+<<<<<<< HEAD
+c1
+=======
+d1
+d2
+>>>>>>> feat
+footer
+";
+        let result = parse_conflict_markers("multi.rs", content).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
 }

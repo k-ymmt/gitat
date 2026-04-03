@@ -1,0 +1,21 @@
+---
+source: crates/gitat-core/src/log.rs
+assertion_line: 130
+expression: result
+---
+[
+    CommitInfo {
+        hash: "aaa111",
+        short_hash: "aaa",
+        author: "Alice",
+        date: "2026-04-03 12:00:00 +0900",
+        message: "merge: feature into main",
+        refs: [
+            "HEAD -> main",
+        ],
+        parent_hashes: [
+            "bbb222",
+            "ccc333",
+        ],
+    },
+]

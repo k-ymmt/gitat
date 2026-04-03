@@ -452,7 +452,23 @@ mod tests {
     use super::*;
     use gitat_core::diff::{DiffFile, DiffHunk, DiffLine, DiffLineKind};
     use ratatui::backend::TestBackend;
+    use ratatui::buffer::Buffer;
     use ratatui::Terminal;
+
+    fn buffer_to_string(buf: &Buffer) -> String {
+        let mut s = String::new();
+        for y in buf.area.y..buf.area.y + buf.area.height {
+            for x in buf.area.x..buf.area.x + buf.area.width {
+                let cell = buf.cell((x, y)).unwrap();
+                s.push_str(cell.symbol());
+            }
+            // trim trailing spaces per line for cleaner snapshots
+            let trimmed = s.trim_end_matches(' ');
+            s.truncate(trimmed.len());
+            s.push('\n');
+        }
+        s
+    }
 
     #[test]
     fn test_pair_lines_context() {
@@ -566,5 +582,244 @@ mod tests {
         state.prev_hunk();
         assert_eq!(state.current_hunk, 1);
         assert_eq!(state.scroll_y, 10);
+    }
+
+    fn make_simple_diff() -> Vec<DiffFile> {
+        vec![DiffFile {
+            old_path: "test.rs".to_string(),
+            new_path: "test.rs".to_string(),
+            hunks: vec![DiffHunk {
+                old_start: 1,
+                old_count: 3,
+                new_start: 1,
+                new_count: 3,
+                lines: vec![
+                    DiffLine {
+                        kind: DiffLineKind::Context,
+                        content: "fn main() {".to_string(),
+                        old_line_no: Some(1),
+                        new_line_no: Some(1),
+                    },
+                    DiffLine {
+                        kind: DiffLineKind::Removed,
+                        content: "    old_code();".to_string(),
+                        old_line_no: Some(2),
+                        new_line_no: None,
+                    },
+                    DiffLine {
+                        kind: DiffLineKind::Added,
+                        content: "    new_code();".to_string(),
+                        old_line_no: None,
+                        new_line_no: Some(2),
+                    },
+                    DiffLine {
+                        kind: DiffLineKind::Context,
+                        content: "}".to_string(),
+                        old_line_no: Some(3),
+                        new_line_no: Some(3),
+                    },
+                ],
+            }],
+        }]
+    }
+
+    #[test]
+    fn snapshot_render_context_and_changes() {
+        let backend = TestBackend::new(60, 6);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let diff = make_simple_diff();
+        let mut state = SideBySideDiffState::new();
+        terminal
+            .draw(|f| {
+                let widget = SideBySideDiff::new(&diff);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_additions_only() {
+        let backend = TestBackend::new(60, 5);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let diff = vec![DiffFile {
+            old_path: "/dev/null".to_string(),
+            new_path: "new.rs".to_string(),
+            hunks: vec![DiffHunk {
+                old_start: 0,
+                old_count: 0,
+                new_start: 1,
+                new_count: 3,
+                lines: vec![
+                    DiffLine {
+                        kind: DiffLineKind::Added,
+                        content: "fn hello() {}".to_string(),
+                        old_line_no: None,
+                        new_line_no: Some(1),
+                    },
+                    DiffLine {
+                        kind: DiffLineKind::Added,
+                        content: "fn world() {}".to_string(),
+                        old_line_no: None,
+                        new_line_no: Some(2),
+                    },
+                ],
+            }],
+        }];
+        let mut state = SideBySideDiffState::new();
+        terminal
+            .draw(|f| {
+                let widget = SideBySideDiff::new(&diff);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_deletions_only() {
+        let backend = TestBackend::new(60, 5);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let diff = vec![DiffFile {
+            old_path: "old.rs".to_string(),
+            new_path: "/dev/null".to_string(),
+            hunks: vec![DiffHunk {
+                old_start: 1,
+                old_count: 2,
+                new_start: 0,
+                new_count: 0,
+                lines: vec![
+                    DiffLine {
+                        kind: DiffLineKind::Removed,
+                        content: "fn removed1() {}".to_string(),
+                        old_line_no: Some(1),
+                        new_line_no: None,
+                    },
+                    DiffLine {
+                        kind: DiffLineKind::Removed,
+                        content: "fn removed2() {}".to_string(),
+                        old_line_no: Some(2),
+                        new_line_no: None,
+                    },
+                ],
+            }],
+        }];
+        let mut state = SideBySideDiffState::new();
+        terminal
+            .draw(|f| {
+                let widget = SideBySideDiff::new(&diff);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_with_horizontal_scroll() {
+        let backend = TestBackend::new(60, 4);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let diff = make_simple_diff();
+        let mut state = SideBySideDiffState::new();
+        state.scroll_x = 4; // scroll right by 4 chars
+        terminal
+            .draw(|f| {
+                let widget = SideBySideDiff::new(&diff);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_narrow_terminal() {
+        let backend = TestBackend::new(30, 4);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let diff = make_simple_diff();
+        let mut state = SideBySideDiffState::new();
+        terminal
+            .draw(|f| {
+                let widget = SideBySideDiff::new(&diff);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_multiple_hunks() {
+        let backend = TestBackend::new(60, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let diff = vec![DiffFile {
+            old_path: "lib.rs".to_string(),
+            new_path: "lib.rs".to_string(),
+            hunks: vec![
+                DiffHunk {
+                    old_start: 1,
+                    old_count: 2,
+                    new_start: 1,
+                    new_count: 2,
+                    lines: vec![
+                        DiffLine {
+                            kind: DiffLineKind::Context,
+                            content: "fn first() {".to_string(),
+                            old_line_no: Some(1),
+                            new_line_no: Some(1),
+                        },
+                        DiffLine {
+                            kind: DiffLineKind::Removed,
+                            content: "    old1();".to_string(),
+                            old_line_no: Some(2),
+                            new_line_no: None,
+                        },
+                        DiffLine {
+                            kind: DiffLineKind::Added,
+                            content: "    new1();".to_string(),
+                            old_line_no: None,
+                            new_line_no: Some(2),
+                        },
+                    ],
+                },
+                DiffHunk {
+                    old_start: 10,
+                    old_count: 2,
+                    new_start: 10,
+                    new_count: 2,
+                    lines: vec![
+                        DiffLine {
+                            kind: DiffLineKind::Context,
+                            content: "fn second() {".to_string(),
+                            old_line_no: Some(10),
+                            new_line_no: Some(10),
+                        },
+                        DiffLine {
+                            kind: DiffLineKind::Removed,
+                            content: "    old2();".to_string(),
+                            old_line_no: Some(11),
+                            new_line_no: None,
+                        },
+                        DiffLine {
+                            kind: DiffLineKind::Added,
+                            content: "    new2();".to_string(),
+                            old_line_no: None,
+                            new_line_no: Some(11),
+                        },
+                    ],
+                },
+            ],
+        }];
+        let mut state = SideBySideDiffState::new();
+        terminal
+            .draw(|f| {
+                let widget = SideBySideDiff::new(&diff);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
     }
 }

@@ -77,4 +77,26 @@ mod tests {
         let result = parse_branches("").unwrap();
         assert!(result.is_empty());
     }
+
+    #[test]
+    fn snapshot_branches_with_current() {
+        let input = "\
+* main       abc1234 latest commit message
+  feature    def5678 wip: add feature
+  bugfix     ghi9012 fix: resolve crash
+";
+        let result = parse_branches(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn snapshot_branches_with_symbolic_ref() {
+        let input = "\
+* main           abc1234 latest commit
+  origin/HEAD -> origin/main
+  feature        def5678 wip feature
+";
+        let result = parse_branches(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
 }

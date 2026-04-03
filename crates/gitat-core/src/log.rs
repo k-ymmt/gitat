@@ -115,4 +115,29 @@ mod tests {
         assert_eq!(result[0].message, "first");
         assert_eq!(result[1].message, "second");
     }
+
+    #[test]
+    fn snapshot_single_commit() {
+        let input = "abc123def456\x1fabc123d\x1f\x1fHEAD -> main\x1fJohn Doe\x1f2026-04-03 10:00:00 +0900\x1ffeat: initial commit\x1e";
+        let result = parse_log(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn snapshot_merge_commit() {
+        let input = "aaa111\x1faaa\x1fbbb222 ccc333\x1fHEAD -> main\x1fAlice\x1f2026-04-03 12:00:00 +0900\x1fmerge: feature into main\x1e";
+        let result = parse_log(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn snapshot_multiple_commits_with_refs() {
+        let input = concat!(
+            "aaa\x1fa\x1f\x1fHEAD -> main, origin/main\x1fBob\x1f2026-04-03\x1flatest\x1e",
+            "bbb\x1fb\x1faaa\x1ftag: v1.0\x1fBob\x1f2026-04-02\x1frelease v1.0\x1e",
+            "ccc\x1fc\x1fbbb\x1f\x1fAlice\x1f2026-04-01\x1finitial\x1e",
+        );
+        let result = parse_log(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
 }

@@ -1,0 +1,18 @@
+---
+source: crates/gitat-core/src/log.rs
+assertion_line: 123
+expression: result
+---
+[
+    CommitInfo {
+        hash: "abc123def456",
+        short_hash: "abc123d",
+        author: "John Doe",
+        date: "2026-04-03 10:00:00 +0900",
+        message: "feat: initial commit",
+        refs: [
+            "HEAD -> main",
+        ],
+        parent_hashes: [],
+    },
+]

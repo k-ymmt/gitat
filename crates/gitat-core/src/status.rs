@@ -106,4 +106,18 @@ mod tests {
         let result = parse_status(input).unwrap();
         assert_eq!(result.len(), 3);
     }
+
+    #[test]
+    fn snapshot_mixed_status() {
+        let input = "\
+MM src/lib.rs
+A  new_file.rs
+ D deleted.rs
+ M src/main.rs
+?? untracked.txt
+R  old_name.rs
+";
+        let result = parse_status(input).unwrap();
+        insta::assert_debug_snapshot!(result);
+    }
 }

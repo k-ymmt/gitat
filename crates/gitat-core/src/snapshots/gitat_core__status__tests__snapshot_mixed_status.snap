@@ -1,0 +1,37 @@
+---
+source: crates/gitat-core/src/status.rs
+assertion_line: 121
+expression: result
+---
+[
+    StatusEntry {
+        path: "src/lib.rs",
+        index_status: Modified,
+        worktree_status: Modified,
+    },
+    StatusEntry {
+        path: "new_file.rs",
+        index_status: Added,
+        worktree_status: Unmodified,
+    },
+    StatusEntry {
+        path: "deleted.rs",
+        index_status: Unmodified,
+        worktree_status: Deleted,
+    },
+    StatusEntry {
+        path: "src/main.rs",
+        index_status: Unmodified,
+        worktree_status: Modified,
+    },
+    StatusEntry {
+        path: "untracked.txt",
+        index_status: Untracked,
+        worktree_status: Untracked,
+    },
+    StatusEntry {
+        path: "old_name.rs",
+        index_status: Renamed,
+        worktree_status: Unmodified,
+    },
+]

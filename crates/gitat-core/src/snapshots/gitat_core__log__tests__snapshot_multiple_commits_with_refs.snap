@@ -1,0 +1,43 @@
+---
+source: crates/gitat-core/src/log.rs
+assertion_line: 141
+expression: result
+---
+[
+    CommitInfo {
+        hash: "aaa",
+        short_hash: "a",
+        author: "Bob",
+        date: "2026-04-03",
+        message: "latest",
+        refs: [
+            "HEAD -> main",
+            "origin/main",
+        ],
+        parent_hashes: [],
+    },
+    CommitInfo {
+        hash: "bbb",
+        short_hash: "b",
+        author: "Bob",
+        date: "2026-04-02",
+        message: "release v1.0",
+        refs: [
+            "tag: v1.0",
+        ],
+        parent_hashes: [
+            "aaa",
+        ],
+    },
+    CommitInfo {
+        hash: "ccc",
+        short_hash: "c",
+        author: "Alice",
+        date: "2026-04-01",
+        message: "initial",
+        refs: [],
+        parent_hashes: [
+            "bbb",
+        ],
+    },
+]
