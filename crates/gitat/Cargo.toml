@@ -1,0 +1,11 @@
+[package]
+name = "gitat"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+gitat-core = { workspace = true }
+gitat-ui = { workspace = true }
+anyhow = { workspace = true }
+crossterm = { workspace = true }
+ratatui = { workspace = true }

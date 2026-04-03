@@ -1,0 +1,42 @@
+<h2>Side-by-side Diff ウィジェット設計</h2>
+<p class="subtitle">gitat の差別化ポイント — 高品質な diff 表示</p>
+
+<div class="section">
+  <h3>基本構造</h3>
+  <div style="font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 16px; border-radius: 8px; font-size: 12px; line-height: 1.5;">
+    <div style="color: #888; text-align: center; margin-bottom: 8px;">src/app.rs</div>
+    <div style="display: flex; gap: 0;">
+      <div style="flex: 1; border-right: 1px solid #444;">
+        <div style="color: #888; border-bottom: 1px solid #333; padding: 2px 8px; margin-bottom: 4px;">OLD (a/src/app.rs)</div>
+        <div style="display: flex;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;">10</span><span>  let app = App::new();</span></div>
+        <div style="display: flex; background: #3d1c1c;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;">11</span><span style="color: #e74c3c;">  app.<span style="background: #6b2c2c; padding: 0 2px;">run</span>();</span></div>
+        <div style="display: flex; background: #2a2a2a;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;"></span><span style="color: #555;">~</span></div>
+        <div style="display: flex;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;">12</span><span>  println!("done");</span></div>
+        <div style="display: flex;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;">13</span><span>}</span></div>
+      </div>
+      <div style="flex: 1;">
+        <div style="color: #888; border-bottom: 1px solid #333; padding: 2px 8px; margin-bottom: 4px;">NEW (b/src/app.rs)</div>
+        <div style="display: flex;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;">10</span><span>  let app = App::new();</span></div>
+        <div style="display: flex; background: #1c3d1c;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;">11</span><span style="color: #82e0aa;">  let config = <span style="background: #2c6b2c; padding: 0 2px;">Config::load</span>();</span></div>
+        <div style="display: flex; background: #1c3d1c;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;">12</span><span style="color: #82e0aa;">  app.<span style="background: #2c6b2c; padding: 0 2px;">run_with</span>(config);</span></div>
+        <div style="display: flex;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;">13</span><span>  println!("done");</span></div>
+        <div style="display: flex;"><span style="color: #666; width: 40px; text-align: right; padding-right: 8px;">14</span><span>}</span></div>
+      </div>
+    </div>
+    <div style="color: #888; margin-top: 8px; border-top: 1px solid #333; padding-top: 4px;">
+      Hunk 1/3 — <span style="color: #e74c3c;">-1</span> <span style="color: #82e0aa;">+2</span> lines
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>主な機能</h3>
+  <ul style="line-height: 1.8;">
+    <li><strong>行の対応付け</strong> — 削除行と追加行を横に揃え、追加/削除のみの行は空行で埋める</li>
+    <li><strong>Word-level diff</strong> — 行内の変更箇所をハイライト (上の例で <code>run</code> → <code>run_with</code> のように)</li>
+    <li><strong>行番号</strong> — 左右それぞれ独立した行番号</li>
+    <li><strong>Hunk ナビゲーション</strong> — <code>n/N</code> で次/前の hunk にジャンプ</li>
+    <li><strong>スクロール</strong> — <code>j/k</code> で縦、<code>H/L</code> で横スクロール（長い行対応）</li>
+    <li><strong>折りたたみ</strong> — 変更のない領域は折りたたんで表示、<code>Enter</code> で展開</li>
+  </ul>
+</div>
