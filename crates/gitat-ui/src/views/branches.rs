@@ -7,17 +7,16 @@ use crate::theme::Theme;
 
 pub fn render(f: &mut Frame, app: &mut App, area: Rect) {
     let items: Vec<ListItem> = app.branches.iter().map(|b| {
-        if b.is_current {
-            ListItem::new(Line::from(vec![
-                Span::styled("* ", Theme::branch_current()),
-                Span::styled(&b.name, Theme::branch_current()),
-            ]))
-        } else {
-            ListItem::new(Line::from(vec![
-                Span::raw("  "),
-                Span::raw(&b.name),
-            ]))
-        }
+        let prefix = if b.is_current { "* " } else { "  " };
+        let name_style = if b.is_current { Theme::branch_current() } else { Theme::default_style() };
+        ListItem::new(Line::from(vec![
+            Span::styled(prefix, name_style),
+            Span::styled(&b.name, name_style),
+            Span::raw(" "),
+            Span::styled(&b.short_hash, Theme::commit_hash()),
+            Span::raw(" "),
+            Span::raw(&b.last_commit),
+        ]))
     }).collect();
 
     let block = Block::default()

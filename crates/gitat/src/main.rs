@@ -10,6 +10,7 @@ use gitat_core::runner::ProcessRunner;
 use gitat_ui::app::{App, Mode, Tab};
 use gitat_ui::event::handle_key;
 use gitat_ui::theme::Theme;
+use gitat_ui::util::centered_rect;
 use gitat_ui::views;
 use gitat_ui::views::commit::render_commit_popup;
 
@@ -109,10 +110,12 @@ fn run_app(
             break;
         }
 
-        if event::poll(Duration::from_millis(100))?
-            && let Event::Key(key) = event::read()?
-        {
-            handle_key(app, key, runner);
+        if event::poll(Duration::from_millis(100))? {
+            match event::read()? {
+                Event::Key(key) => handle_key(app, key, runner),
+                Event::Resize(_, _) => {} // triggers redraw on next loop iteration
+                _ => {}
+            }
         }
     }
 
@@ -149,22 +152,3 @@ fn render_help_popup(f: &mut ratatui::Frame) {
     f.render_widget(paragraph, area);
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, area: ratatui::layout::Rect) -> ratatui::layout::Rect {
-    let vertical = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(area);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(vertical[1])[1]
-}

@@ -26,4 +26,5 @@ impl Theme {
     pub fn branch_current() -> Style { Style::new().fg(Color::Green).add_modifier(Modifier::BOLD) }
     pub fn commit_hash() -> Style { Style::new().fg(Color::Yellow) }
     pub fn commit_ref() -> Style { Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD) }
+    pub fn default_style() -> Style { Style::new() }
 }

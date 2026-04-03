@@ -4,7 +4,7 @@ use crate::app::{App, Mode, Panel, Tab};
 use gitat_core::runner::CommandRunner;
 
 pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
-    match &app.mode.clone() {
+    match app.mode {
         Mode::Normal => handle_normal(app, key, runner),
         Mode::Commit { .. } => handle_commit(app, key, runner),
         Mode::Help => handle_help(app, key),
@@ -78,18 +78,28 @@ fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
             };
         }
         KeyCode::Char('p') => {
-            if let Err(e) = gitat_core::remote::push(runner, "origin", "HEAD") {
-                app.set_status_message(format!("Push failed: {e}"));
-            } else {
-                app.set_status_message("Pushed successfully");
+            match gitat_core::branch::current_branch(runner) {
+                Ok(branch) => {
+                    if let Err(e) = gitat_core::remote::push(runner, "origin", &branch) {
+                        app.set_status_message(format!("Push failed: {e}"));
+                    } else {
+                        app.set_status_message(format!("Pushed to origin/{branch}"));
+                    }
+                }
+                Err(e) => app.set_status_message(format!("Push failed: {e}")),
             }
         }
         KeyCode::Char('P') => {
-            if let Err(e) = gitat_core::remote::pull(runner, "origin", "HEAD") {
-                app.set_status_message(format!("Pull failed: {e}"));
-            } else {
-                app.set_status_message("Pulled successfully");
-                app.refresh(runner);
+            match gitat_core::branch::current_branch(runner) {
+                Ok(branch) => {
+                    if let Err(e) = gitat_core::remote::pull(runner, "origin", &branch) {
+                        app.set_status_message(format!("Pull failed: {e}"));
+                    } else {
+                        app.set_status_message(format!("Pulled from origin/{branch}"));
+                        app.refresh(runner);
+                    }
+                }
+                Err(e) => app.set_status_message(format!("Pull failed: {e}")),
             }
         }
         KeyCode::Char('b') => {

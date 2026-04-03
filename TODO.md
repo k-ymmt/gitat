@@ -2,11 +2,11 @@
 
 ## バグ / 要修正
 
-- [ ] `push`/`pull` が `"origin", "HEAD"` を使用している — 現在のブランチ名を推論すべき
+- [x] `push`/`pull` が `"origin", "HEAD"` を使用している — 現在のブランチ名を推論すべき
 - [ ] ステータスメッセージが自動消去されない（スペックでは3秒で消去）
-- [ ] ブランチ解析で `last_commit` にコミットメッセージが入り、short hash がスキップされている
-- [ ] イベントハンドラで毎キー入力時に `mode.clone()` が発生 — 参照またはdiscriminantマッチに変更すべき
-- [ ] `centered_rect` が `views/commit.rs` と `main.rs` で重複 — 共通ユーティリティに抽出すべき
+- [x] ブランチ解析で `last_commit` にコミットメッセージが入り、short hash がスキップされている
+- [x] イベントハンドラで毎キー入力時に `mode.clone()` が発生 — 参照またはdiscriminantマッチに変更すべき
+- [x] `centered_rect` が `views/commit.rs` と `main.rs` で重複 — 共通ユーティリティに抽出すべき
 
 ## 未実装機能（MVPスコープ）
 
@@ -14,7 +14,7 @@
 - [ ] コンフリクトエディタのインライン編集 (`e` キー) — `editing` フィールドは存在するがキーハンドラなし
 - [ ] Diff のコンテキスト折りたたみ — 変更のない領域を折りたたんで表示
 - [ ] `stage_hunk` — スペックに記載があるが `stage_file`/`unstage_file` のみ実装
-- [ ] Resize イベントハンドリング — スペックでは `Event::Resize` を処理しているが `main.rs` は `Event::Key` のみ
+- [x] Resize イベントハンドリング — スペックでは `Event::Resize` を処理しているが `main.rs` は `Event::Key` のみ
 
 ## テスト
 

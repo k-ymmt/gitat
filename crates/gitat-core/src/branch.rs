@@ -6,6 +6,7 @@ pub struct BranchInfo {
     pub name: String,
     pub is_current: bool,
     pub upstream: Option<String>,
+    pub short_hash: String,
     pub last_commit: String,
 }
 
@@ -23,11 +24,17 @@ pub fn parse_branches(output: &str) -> Result<Vec<BranchInfo>, GitError> {
                 name: parts[0].to_string(),
                 is_current,
                 upstream: None,
+                short_hash: parts[1].to_string(),
                 last_commit: parts.get(2).unwrap_or(&"").to_string(),
             });
         }
     }
     Ok(branches)
+}
+
+pub fn current_branch(runner: &dyn CommandRunner) -> Result<String, GitError> {
+    let output = runner.run(&["rev-parse", "--abbrev-ref", "HEAD"])?;
+    Ok(output.trim().to_string())
 }
 
 pub fn list_branches(runner: &dyn CommandRunner) -> Result<Vec<BranchInfo>, GitError> {
