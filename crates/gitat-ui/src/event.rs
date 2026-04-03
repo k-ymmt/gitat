@@ -10,7 +10,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
         Mode::Help => handle_help(app, key),
         Mode::Search { .. } => handle_search(app, key),
         Mode::Conflict { .. } => handle_conflict(app, key, runner),
-        Mode::CommitDetail => {}
+        Mode::CommitDetail => handle_commit_detail(app, key, runner),
     }
 }
 
@@ -125,7 +125,11 @@ fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
             app.mode = Mode::Help;
         }
         KeyCode::Enter => {
-            load_diff_for_selected(app, runner);
+            if app.tab == Tab::Log {
+                enter_commit_detail(app, runner);
+            } else {
+                load_diff_for_selected(app, runner);
+            }
         }
         _ => {}
     }
@@ -329,6 +333,134 @@ fn load_diff_for_selected(app: &mut App, runner: &dyn CommandRunner) {
     }
 }
 
+fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
+    let idx = match app.log_list_state.selected() {
+        Some(i) => i,
+        None => return,
+    };
+    let commit = match app.log_entries.get(idx) {
+        Some(c) => c.clone(),
+        None => return,
+    };
+
+    let files = match gitat_core::commit_detail::get_commit_files(runner, &commit.hash) {
+        Ok(f) => f,
+        Err(e) => {
+            app.set_status_message(format!("Failed to load commit files: {e}"));
+            return;
+        }
+    };
+
+    app.commit_detail_commit = Some(commit.clone());
+    app.commit_detail_files = files;
+    app.commit_detail_file_state = ratatui::widgets::ListState::default();
+    if !app.commit_detail_files.is_empty() {
+        app.commit_detail_file_state.select(Some(0));
+        load_commit_detail_diff(app, runner);
+    }
+    app.commit_detail_panel = Panel::Left;
+    app.commit_detail_diff_state = crate::widgets::side_by_side_diff::SideBySideDiffState::new();
+    app.mode = Mode::CommitDetail;
+}
+
+fn load_commit_detail_diff(app: &mut App, runner: &dyn CommandRunner) {
+    let commit = match &app.commit_detail_commit {
+        Some(c) => c,
+        None => return,
+    };
+    let idx = match app.commit_detail_file_state.selected() {
+        Some(i) => i,
+        None => return,
+    };
+    let file_entry = match app.commit_detail_files.get(idx) {
+        Some(f) => f,
+        None => return,
+    };
+
+    let parent = commit.parent_hashes.first().map(|s| s.as_str());
+    match gitat_core::commit_detail::get_commit_file_diff(
+        runner,
+        &commit.hash,
+        parent,
+        &file_entry.path,
+    ) {
+        Ok(diff) => {
+            app.commit_detail_diff = Some(diff);
+            app.commit_detail_diff_state = crate::widgets::side_by_side_diff::SideBySideDiffState::new();
+        }
+        Err(e) => {
+            app.set_status_message(format!("Failed to load diff: {e}"));
+        }
+    }
+}
+
+fn handle_commit_detail(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
+    match key.code {
+        KeyCode::Esc => {
+            app.mode = Mode::Normal;
+            app.commit_detail_commit = None;
+            app.commit_detail_files.clear();
+            app.commit_detail_file_state = ratatui::widgets::ListState::default();
+            app.commit_detail_diff = None;
+            app.commit_detail_diff_state = crate::widgets::side_by_side_diff::SideBySideDiffState::new();
+        }
+        KeyCode::Char('q') => {
+            app.should_quit = true;
+        }
+        KeyCode::Char('h') => {
+            app.commit_detail_panel = Panel::Left;
+        }
+        KeyCode::Char('l') => {
+            app.commit_detail_panel = Panel::Right;
+        }
+        KeyCode::Char('j') | KeyCode::Down => {
+            if app.commit_detail_panel == Panel::Left {
+                let len = app.commit_detail_files.len();
+                if len > 0 {
+                    let i = match app.commit_detail_file_state.selected() {
+                        Some(i) => (i + 1).min(len - 1),
+                        None => 0,
+                    };
+                    app.commit_detail_file_state.select(Some(i));
+                    load_commit_detail_diff(app, runner);
+                }
+            } else {
+                app.commit_detail_diff_state.scroll_down(1);
+            }
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            if app.commit_detail_panel == Panel::Left {
+                if let Some(i) = app.commit_detail_file_state.selected() {
+                    let next = if i == 0 { 0 } else { i - 1 };
+                    app.commit_detail_file_state.select(Some(next));
+                    load_commit_detail_diff(app, runner);
+                }
+            } else {
+                app.commit_detail_diff_state.scroll_up(1);
+            }
+        }
+        KeyCode::Char('J') => {
+            app.commit_detail_diff_state.scroll_down(1);
+        }
+        KeyCode::Char('K') => {
+            app.commit_detail_diff_state.scroll_up(1);
+        }
+        KeyCode::Char('H') => {
+            app.commit_detail_diff_state.scroll_left(4);
+        }
+        KeyCode::Char('L') => {
+            app.commit_detail_diff_state.scroll_right(4);
+        }
+        KeyCode::Char('n') => {
+            app.commit_detail_diff_state.next_hunk();
+        }
+        KeyCode::Char('N') => {
+            app.commit_detail_diff_state.prev_hunk();
+        }
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -382,5 +514,64 @@ mod tests {
         let runner = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
         assert_eq!(app.mode, Mode::Normal);
+    }
+
+    #[test]
+    fn test_enter_log_tab_enters_commit_detail_mode() {
+        let mut app = App::new();
+        app.tab = Tab::Log;
+        app.log_entries = vec![gitat_core::log::CommitInfo {
+            hash: "abc123".to_string(),
+            short_hash: "abc".to_string(),
+            author: "Test".to_string(),
+            date: "2026-04-04".to_string(),
+            message: "test commit".to_string(),
+            refs: vec![],
+            parent_hashes: vec!["parent1".to_string()],
+        }];
+        app.log_list_state.select(Some(0));
+
+        let runner = MockRunner::new()
+            .with_response(
+                "diff-tree --no-commit-id -r --name-status abc123",
+                "M\tsrc/main.rs\n",
+            )
+            .with_response("diff parent1..abc123 -- src/main.rs", "");
+
+        handle_key(&mut app, mock_key(KeyCode::Enter), &runner);
+        assert!(matches!(app.mode, Mode::CommitDetail));
+        assert!(app.commit_detail_commit.is_some());
+        assert_eq!(app.commit_detail_files.len(), 1);
+    }
+
+    #[test]
+    fn test_esc_from_commit_detail_returns_to_normal() {
+        let mut app = App::new();
+        app.mode = Mode::CommitDetail;
+        app.commit_detail_commit = Some(gitat_core::log::CommitInfo {
+            hash: "abc123".to_string(),
+            short_hash: "abc".to_string(),
+            author: "Test".to_string(),
+            date: "2026-04-04".to_string(),
+            message: "test".to_string(),
+            refs: vec![],
+            parent_hashes: vec![],
+        });
+        let runner = MockRunner::new();
+        handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
+        assert_eq!(app.mode, Mode::Normal);
+        assert!(app.commit_detail_commit.is_none());
+    }
+
+    #[test]
+    fn test_commit_detail_panel_switch() {
+        let mut app = App::new();
+        app.mode = Mode::CommitDetail;
+        app.commit_detail_panel = Panel::Left;
+        let runner = MockRunner::new();
+        handle_key(&mut app, mock_key(KeyCode::Char('l')), &runner);
+        assert_eq!(app.commit_detail_panel, Panel::Right);
+        handle_key(&mut app, mock_key(KeyCode::Char('h')), &runner);
+        assert_eq!(app.commit_detail_panel, Panel::Left);
     }
 }
