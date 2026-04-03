@@ -35,7 +35,9 @@ fn format_hunk_patch(diff_file: &DiffFile, hunk_index: usize) -> Result<String, 
         format!("b/{}", diff_file.new_path)
     };
 
-    patch.push_str(&format!("diff --git a/{} b/{}\n", diff_file.old_path, diff_file.new_path));
+    let diff_old = if diff_file.old_path == "/dev/null" { &diff_file.new_path } else { &diff_file.old_path };
+    let diff_new = if diff_file.new_path == "/dev/null" { &diff_file.old_path } else { &diff_file.new_path };
+    patch.push_str(&format!("diff --git a/{} b/{}\n", diff_old, diff_new));
     patch.push_str(&format!("--- {}\n", old_header));
     patch.push_str(&format!("+++ {}\n", new_header));
 
@@ -164,6 +166,7 @@ diff --git a/src/main.rs b/src/main.rs
             }],
         };
         let patch = format_hunk_patch(&diff_file, 0).unwrap();
+        assert!(patch.starts_with("diff --git a/new.rs b/new.rs\n"));
         assert!(patch.contains("--- /dev/null\n"));
         assert!(patch.contains("+++ b/new.rs\n"));
     }
