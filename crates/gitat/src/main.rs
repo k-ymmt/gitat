@@ -85,6 +85,17 @@ fn run_app(
             let status_bar = Paragraph::new(status_text).style(Theme::status_bar());
             f.render_widget(status_bar, chunks[2]);
 
+            // Conflict editor overlay
+            if matches!(app.mode, Mode::Conflict { .. }) {
+                if let (Some(file), Some(state)) =
+                    (&app.conflict_file, &mut app.conflict_state)
+                {
+                    let editor =
+                        gitat_ui::widgets::conflict_editor::ConflictEditor::new(file);
+                    f.render_stateful_widget(editor, chunks[1], state);
+                }
+            }
+
             // Popups
             if matches!(app.mode, Mode::Commit { .. }) {
                 render_commit_popup(f, app);

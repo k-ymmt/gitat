@@ -9,7 +9,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
         Mode::Commit { .. } => handle_commit(app, key, runner),
         Mode::Help => handle_help(app, key),
         Mode::Search { .. } => handle_search(app, key),
-        Mode::Conflict { .. } => handle_conflict(app, key),
+        Mode::Conflict { .. } => handle_conflict(app, key, runner),
     }
 }
 
@@ -23,6 +23,25 @@ fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
         }
         KeyCode::BackTab => {
             app.tab = app.tab.prev();
+        }
+        // Diff navigation keys (uppercase, right panel only) — must be checked before lowercase h/l
+        KeyCode::Char('n') if app.panel == Panel::Right => {
+            app.diff_state.next_hunk();
+        }
+        KeyCode::Char('N') if app.panel == Panel::Right => {
+            app.diff_state.prev_hunk();
+        }
+        KeyCode::Char('J') if app.panel == Panel::Right => {
+            app.diff_state.scroll_down(1);
+        }
+        KeyCode::Char('K') if app.panel == Panel::Right => {
+            app.diff_state.scroll_up(1);
+        }
+        KeyCode::Char('H') if app.panel == Panel::Right => {
+            app.diff_state.scroll_left(4);
+        }
+        KeyCode::Char('L') if app.panel == Panel::Right => {
+            app.diff_state.scroll_right(4);
         }
         KeyCode::Char('l') => {
             app.panel = Panel::Right;
@@ -167,9 +186,36 @@ fn handle_search(app: &mut App, key: KeyEvent) {
     }
 }
 
-fn handle_conflict(app: &mut App, key: KeyEvent) {
+fn handle_conflict(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
+    let (state, file) = match (&mut app.conflict_state, &app.conflict_file) {
+        (Some(state), Some(file)) => (state, file),
+        _ => {
+            app.mode = Mode::Normal;
+            return;
+        }
+    };
+
     match key.code {
+        KeyCode::Char('o') => state.use_ours(file),
+        KeyCode::Char('t') => state.use_theirs(file),
+        KeyCode::Char('n') => state.next_conflict(),
+        KeyCode::Char('N') => state.prev_conflict(),
+        KeyCode::Char('w') => {
+            let content = state.result_content();
+            let path = file.path.clone();
+            if let Err(e) = gitat_core::conflict::resolve_file(runner, &path, &content) {
+                app.set_status_message(format!("Resolve failed: {e}"));
+            } else {
+                app.set_status_message(format!("Resolved: {path}"));
+                app.refresh(runner);
+            }
+            app.conflict_state = None;
+            app.conflict_file = None;
+            app.mode = Mode::Normal;
+        }
         KeyCode::Esc | KeyCode::Char('q') => {
+            app.conflict_state = None;
+            app.conflict_file = None;
             app.mode = Mode::Normal;
         }
         _ => {}

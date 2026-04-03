@@ -1,9 +1,13 @@
 use gitat_core::branch::BranchInfo;
+use gitat_core::conflict::ConflictFile;
 use gitat_core::diff::DiffFile;
 use gitat_core::log::CommitInfo;
 use gitat_core::runner::CommandRunner;
 use gitat_core::status::StatusEntry;
 use ratatui::widgets::ListState;
+
+use crate::widgets::conflict_editor::ConflictEditorState;
+use crate::widgets::side_by_side_diff::SideBySideDiffState;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Tab {
@@ -64,11 +68,14 @@ pub struct App {
     pub should_quit: bool,
     pub file_list_state: ListState,
     pub diff_scroll: (u16, u16),
+    pub diff_state: SideBySideDiffState,
     pub status: Vec<StatusEntry>,
     pub branches: Vec<BranchInfo>,
     pub log_entries: Vec<CommitInfo>,
     pub current_diff: Option<Vec<DiffFile>>,
     pub status_message: Option<String>,
+    pub conflict_state: Option<ConflictEditorState>,
+    pub conflict_file: Option<ConflictFile>,
 }
 
 impl App {
@@ -80,11 +87,14 @@ impl App {
             should_quit: false,
             file_list_state: ListState::default(),
             diff_scroll: (0, 0),
+            diff_state: SideBySideDiffState::new(),
             status: Vec::new(),
             branches: Vec::new(),
             log_entries: Vec::new(),
             current_diff: None,
             status_message: None,
+            conflict_state: None,
+            conflict_file: None,
         }
     }
 

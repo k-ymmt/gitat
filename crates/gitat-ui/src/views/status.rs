@@ -5,6 +5,7 @@ use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use gitat_core::status::FileStatus;
 use crate::app::{App, Panel};
 use crate::theme::Theme;
+use crate::widgets::side_by_side_diff::SideBySideDiff;
 
 fn file_status_code(status: &FileStatus) -> &'static str {
     match status {
@@ -123,14 +124,23 @@ fn render_diff_detail(f: &mut Frame, app: &mut App, area: Rect) {
         Theme::border()
     };
 
-    let block = Block::default()
-        .title(" Diff ")
-        .borders(Borders::ALL)
-        .border_style(border_style);
+    if let Some(ref diff_files) = app.current_diff {
+        let block = Block::default()
+            .title(" Diff ")
+            .borders(Borders::ALL)
+            .border_style(border_style);
+        let widget = SideBySideDiff::new(diff_files).block(block);
+        f.render_stateful_widget(widget, area, &mut app.diff_state);
+    } else {
+        let block = Block::default()
+            .title(" Diff ")
+            .borders(Borders::ALL)
+            .border_style(border_style);
 
-    let placeholder = Paragraph::new("Select a file and press Enter to view diff")
-        .block(block)
-        .style(Theme::diff_context());
+        let placeholder = Paragraph::new("Select a file and press Enter to view diff")
+            .block(block)
+            .style(Theme::diff_context());
 
-    f.render_widget(placeholder, area);
+        f.render_widget(placeholder, area);
+    }
 }
