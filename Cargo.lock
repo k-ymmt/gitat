@@ -465,6 +465,7 @@ dependencies = [
  "gitat-core",
  "insta",
  "ratatui",
+ "similar",
 ]
 
 [[package]]
