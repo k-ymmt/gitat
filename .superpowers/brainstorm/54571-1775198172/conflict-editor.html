@@ -1,0 +1,54 @@
+<h2>コンフリクト解消エディタ</h2>
+<p class="subtitle">2-way 比較 + インライン編集</p>
+
+<div class="section">
+  <h3>画面構成</h3>
+  <div style="font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 16px; border-radius: 8px; font-size: 12px; line-height: 1.5;">
+    <div style="color: #888; text-align: center; margin-bottom: 8px;">Conflict: src/config.rs — 2/5 conflicts resolved</div>
+    <div style="display: flex; gap: 0; margin-bottom: 2px;">
+      <div style="flex: 1; text-align: center; color: #e8a838; background: #2a2210; padding: 2px;">OURS (main)</div>
+      <div style="flex: 1; text-align: center; color: #38a8e8; background: #10222a; padding: 2px;">THEIRS (feature/auth)</div>
+    </div>
+    <div style="display: flex; gap: 0; border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 8px;">
+      <div style="flex: 1; border-right: 1px solid #444; padding-right: 8px;">
+        <div style="display: flex;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">14</span><span>pub struct Config {</span></div>
+        <div style="display: flex; background: #2a2210;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">15</span><span style="color: #e8a838;">    pub timeout: u64,</span></div>
+        <div style="display: flex; background: #2a2210;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">16</span><span style="color: #e8a838;">    pub retries: u32,</span></div>
+        <div style="display: flex;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">17</span><span>}</span></div>
+      </div>
+      <div style="flex: 1; padding-left: 8px;">
+        <div style="display: flex;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">14</span><span>pub struct Config {</span></div>
+        <div style="display: flex; background: #10222a;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">15</span><span style="color: #38a8e8;">    pub timeout: Duration,</span></div>
+        <div style="display: flex; background: #10222a;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">16</span><span style="color: #38a8e8;">    pub max_retries: u32,</span></div>
+        <div style="display: flex; background: #10222a;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">17</span><span style="color: #38a8e8;">    pub auth_token: String,</span></div>
+        <div style="display: flex;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">18</span><span>}</span></div>
+      </div>
+    </div>
+    <div style="margin-bottom: 2px;">
+      <div style="color: #82e0aa; text-align: center; background: #1c2a1c; padding: 2px;">RESULT (editable)</div>
+    </div>
+    <div style="border: 1px solid #82e0aa40; padding: 8px; background: #0d1a0d;">
+      <div style="display: flex;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">14</span><span>pub struct Config {</span></div>
+      <div style="display: flex;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">15</span><span style="color: #82e0aa;">    pub timeout: Duration,<span style="color: #555;"> █</span></span></div>
+      <div style="display: flex;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">16</span><span style="color: #82e0aa;">    pub max_retries: u32,</span></div>
+      <div style="display: flex;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">17</span><span style="color: #82e0aa;">    pub auth_token: String,</span></div>
+      <div style="display: flex;"><span style="color: #666; width: 30px; text-align: right; padding-right: 6px;">18</span><span>}</span></div>
+    </div>
+    <div style="color: #888; margin-top: 8px; border-top: 1px solid #333; padding-top: 4px;">
+      <span style="color: #e8a838;">o</span>: use ours  <span style="color: #38a8e8;">t</span>: use theirs  <span style="color: #82e0aa;">e</span>: edit result  <span>n/N</span>: next/prev conflict  <span style="color: #82e0aa;">w</span>: save  <span>Esc</span>: cancel
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>ワークフロー</h3>
+  <ol style="line-height: 2;">
+    <li>コンフリクトファイル一覧から選択 → エディタが開く</li>
+    <li>上部: OURS と THEIRS の 2-way 比較表示</li>
+    <li>下部: RESULT エリア（初期値は OURS の内容）</li>
+    <li><code>o</code> で ours 全体採用、<code>t</code> で theirs 全体採用 → RESULT に反映</li>
+    <li><code>e</code> で RESULT エリアに入り直接テキスト編集（Vim ライクな操作）</li>
+    <li><code>n/N</code> で同一ファイル内の次/前のコンフリクト箇所に移動</li>
+    <li><code>w</code> で保存し、<code>git add</code> でステージング</li>
+  </ol>
+</div>

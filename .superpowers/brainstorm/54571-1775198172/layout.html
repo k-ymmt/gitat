@@ -1,0 +1,87 @@
+<h2>gitat メイン画面レイアウト</h2>
+<p class="subtitle">lazygit 風のマルチパネル構成</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>3カラム構成</h3>
+      <div style="font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.4;">
+        <div style="color: #888; margin-bottom: 4px;">┌─ Status ──────┬─ Diff ─────────────────┬─ Log ──────────┐</div>
+        <div style="display: flex; gap: 0;">
+          <div style="flex: 0 0 22%; border-right: 1px solid #444; padding-right: 8px;">
+            <div style="color: #f7dc6f;">Staged:</div>
+            <div style="color: #82e0aa;">  M src/app.rs</div>
+            <div style="color: #82e0aa;">  A src/new.rs</div>
+            <div style="color: #f7dc6f; margin-top: 8px;">Unstaged:</div>
+            <div style="color: #e74c3c;">  M Cargo.toml</div>
+            <div style="color: #e74c3c;">  D old.rs</div>
+            <div style="color: #f7dc6f; margin-top: 8px;">Untracked:</div>
+            <div style="color: #aaa;">  ? test.txt</div>
+          </div>
+          <div style="flex: 0 0 50%; padding: 0 8px; border-right: 1px solid #444;">
+            <div style="color: #888;">@@ -10,6 +10,8 @@ fn main()</div>
+            <div style="color: #aaa;">   let app = App::new();</div>
+            <div style="color: #e74c3c;">-  app.run();</div>
+            <div style="color: #82e0aa;">+  let config = Config::load();</div>
+            <div style="color: #82e0aa;">+  app.run_with(config);</div>
+            <div style="color: #aaa;">   println!("done");</div>
+          </div>
+          <div style="flex: 0 0 28%; padding-left: 8px;">
+            <div><span style="color: #f39c12;">a1b2c3d</span> <span style="color: #3498db;">(HEAD)</span></div>
+            <div style="color: #aaa;">  fix: resolve panic</div>
+            <div><span style="color: #f39c12;">e4f5g6h</span></div>
+            <div style="color: #aaa;">  feat: add config</div>
+            <div><span style="color: #f39c12;">i7j8k9l</span></div>
+            <div style="color: #aaa;">  refactor: split mod</div>
+          </div>
+        </div>
+        <div style="color: #888; margin-top: 4px;">└────────────────┴────────────────────────┴────────────────┘</div>
+        <div style="color: #5dade2; margin-top: 4px;">j/k: move  h/l: panel  s: stage  c: commit  p: push  ?: help</div>
+      </div>
+      <p style="margin-top: 8px;">Status・Diff・Log を横に3分割。Diff が中央で最も広い。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>2カラム + タブ構成</h3>
+      <div style="font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.4;">
+        <div style="color: #5dade2; margin-bottom: 4px;">[Status] [Branches] [Log] [Stash]</div>
+        <div style="color: #888;">┌─ Files ────────┬─ Detail ──────────────────────────────┐</div>
+        <div style="display: flex; gap: 0;">
+          <div style="flex: 0 0 25%; border-right: 1px solid #444; padding-right: 8px;">
+            <div style="color: #f7dc6f;">Staged (2)</div>
+            <div style="color: #82e0aa;">▸ M src/app.rs</div>
+            <div style="color: #82e0aa;">  A src/new.rs</div>
+            <div style="color: #f7dc6f; margin-top: 8px;">Modified (1)</div>
+            <div style="color: #e74c3c;">  M Cargo.toml</div>
+          </div>
+          <div style="flex: 0 0 75%; padding-left: 8px;">
+            <div style="color: #888; margin-bottom: 4px;">src/app.rs — side-by-side diff</div>
+            <div style="display: flex; gap: 8px;">
+              <div style="flex: 1; border-right: 1px solid #333; padding-right: 8px;">
+                <div style="color: #888;">10</div>
+                <div>  let app = App::new();</div>
+                <div style="color: #e74c3c; background: #3d1c1c;">  app.run();</div>
+                <div>&nbsp;</div>
+                <div>  println!("done");</div>
+              </div>
+              <div style="flex: 1; padding-left: 8px;">
+                <div style="color: #888;">10</div>
+                <div>  let app = App::new();</div>
+                <div style="color: #82e0aa; background: #1c3d1c;">  let config = Config::load();</div>
+                <div style="color: #82e0aa; background: #1c3d1c;">  app.run_with(config);</div>
+                <div>  println!("done");</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="color: #888; margin-top: 4px;">└────────────────┴───────────────────────────────────────┘</div>
+        <div style="color: #5dade2; margin-top: 4px;">j/k: move  h/l: panel  Tab: tab  s: stage  c: commit  ?: help</div>
+      </div>
+      <p style="margin-top: 8px;">左にファイルリスト、右に詳細(diff)。上部タブで Status/Branches/Log/Stash を切り替え。Diff に広い領域を確保でき、side-by-side 表示に有利。</p>
+    </div>
+  </div>
+</div>
