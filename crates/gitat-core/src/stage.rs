@@ -12,6 +12,26 @@ pub fn unstage_file(runner: &dyn CommandRunner, path: &str) -> Result<(), GitErr
     Ok(())
 }
 
+pub fn stage_hunk(
+    runner: &dyn CommandRunner,
+    diff_file: &DiffFile,
+    hunk_index: usize,
+) -> Result<(), GitError> {
+    let patch = format_hunk_patch(diff_file, hunk_index)?;
+    runner.run_with_stdin(&["apply", "--cached"], &patch)?;
+    Ok(())
+}
+
+pub fn unstage_hunk(
+    runner: &dyn CommandRunner,
+    diff_file: &DiffFile,
+    hunk_index: usize,
+) -> Result<(), GitError> {
+    let patch = format_hunk_patch(diff_file, hunk_index)?;
+    runner.run_with_stdin(&["apply", "--cached", "--reverse"], &patch)?;
+    Ok(())
+}
+
 fn format_hunk_patch(diff_file: &DiffFile, hunk_index: usize) -> Result<String, GitError> {
     let hunk = diff_file.hunks.get(hunk_index).ok_or_else(|| {
         GitError::ParseError(format!(
@@ -183,5 +203,33 @@ diff --git a/src/main.rs b/src/main.rs
         let diff_file = make_simple_diff_file();
         let patch = format_hunk_patch(&diff_file, 0).unwrap();
         insta::assert_snapshot!(patch);
+    }
+
+    use crate::runner::MockRunner;
+
+    #[test]
+    fn test_stage_hunk() {
+        let diff_file = make_simple_diff_file();
+        let runner = MockRunner::new()
+            .with_response("apply --cached", "");
+        let result = stage_hunk(&runner, &diff_file, 0);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_unstage_hunk() {
+        let diff_file = make_simple_diff_file();
+        let runner = MockRunner::new()
+            .with_response("apply --cached --reverse", "");
+        let result = unstage_hunk(&runner, &diff_file, 0);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_stage_hunk_out_of_bounds() {
+        let diff_file = make_simple_diff_file();
+        let runner = MockRunner::new();
+        let result = stage_hunk(&runner, &diff_file, 99);
+        assert!(result.is_err());
     }
 }
