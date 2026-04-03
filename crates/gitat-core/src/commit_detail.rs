@@ -1,3 +1,5 @@
+use crate::diff::{self, DiffFile};
+use crate::runner::CommandRunner;
 use crate::GitError;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -40,6 +42,29 @@ pub fn parse_commit_files(output: &str) -> Result<Vec<CommitFileEntry>, GitError
         entries.push(CommitFileEntry { path, status });
     }
     Ok(entries)
+}
+
+pub fn get_commit_files(
+    runner: &dyn CommandRunner,
+    hash: &str,
+) -> Result<Vec<CommitFileEntry>, GitError> {
+    let output = runner.run(&["diff-tree", "--no-commit-id", "-r", "--name-status", hash])?;
+    parse_commit_files(&output)
+}
+
+pub fn get_commit_file_diff(
+    runner: &dyn CommandRunner,
+    hash: &str,
+    parent_hash: Option<&str>,
+    file_path: &str,
+) -> Result<Vec<DiffFile>, GitError> {
+    let output = if let Some(parent) = parent_hash {
+        let range = format!("{parent}..{hash}");
+        runner.run(&["diff", &range, "--", file_path])?
+    } else {
+        runner.run(&["show", "--format=", hash, "--", file_path])?
+    };
+    diff::parse_diff(&output)
 }
 
 #[cfg(test)]
@@ -88,5 +113,62 @@ mod tests {
         let input = "A\tsrc/new.rs\nM\tsrc/main.rs\nD\tsrc/old.rs\n";
         let result = parse_commit_files(input).unwrap();
         insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn test_get_commit_files() {
+        let runner = crate::runner::MockRunner::new()
+            .with_response(
+                "diff-tree --no-commit-id -r --name-status abc123",
+                "M\tsrc/main.rs\nA\tsrc/new.rs\n",
+            );
+        let result = get_commit_files(&runner, "abc123").unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].path, "src/main.rs");
+        assert_eq!(result[1].path, "src/new.rs");
+    }
+
+    #[test]
+    fn test_get_commit_file_diff_with_parent() {
+        let diff_output = "\
+diff --git a/src/main.rs b/src/main.rs
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,3 +1,4 @@
+ fn main() {
+-    old();
++    new();
++    extra();
+ }
+";
+        let runner = crate::runner::MockRunner::new()
+            .with_response(
+                "diff parent123..abc123 -- src/main.rs",
+                diff_output,
+            );
+        let result = get_commit_file_diff(&runner, "abc123", Some("parent123"), "src/main.rs").unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].old_path, "src/main.rs");
+    }
+
+    #[test]
+    fn test_get_commit_file_diff_root_commit() {
+        let diff_output = "\
+diff --git a/src/main.rs b/src/main.rs
+new file mode 100644
+--- /dev/null
++++ b/src/main.rs
+@@ -0,0 +1,2 @@
++fn main() {}
++fn helper() {}
+";
+        let runner = crate::runner::MockRunner::new()
+            .with_response(
+                "show --format= abc123 -- src/main.rs",
+                diff_output,
+            );
+        let result = get_commit_file_diff(&runner, "abc123", None, "src/main.rs").unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].old_path, "/dev/null");
     }
 }
