@@ -6,6 +6,7 @@ pub mod branch;
 pub mod stage;
 pub mod commit;
 pub mod remote;
+pub mod conflict;
 
 use thiserror::Error;
 
