@@ -5,6 +5,7 @@ pub mod diff;
 pub mod branch;
 pub mod stage;
 pub mod commit;
+pub mod commit_detail;
 pub mod remote;
 pub mod conflict;
 

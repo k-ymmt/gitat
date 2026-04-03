@@ -1,0 +1,19 @@
+---
+source: crates/gitat-core/src/commit_detail.rs
+assertion_line: 92
+expression: result
+---
+[
+    CommitFileEntry {
+        path: "src/new.rs",
+        status: Added,
+    },
+    CommitFileEntry {
+        path: "src/main.rs",
+        status: Modified,
+    },
+    CommitFileEntry {
+        path: "src/old.rs",
+        status: Deleted,
+    },
+]
