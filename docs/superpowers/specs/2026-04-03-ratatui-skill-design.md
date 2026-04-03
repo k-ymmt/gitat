@@ -41,7 +41,9 @@ description: >
 ### Body Sections (~400-500 lines total)
 
 1. **Quick Start** (~60 lines)
-   - Minimal working app: Terminal init, main loop, cleanup
+   - Minimal working app using `ratatui::init()` / `ratatui::restore()` convenience functions
+   - Includes event loop with crossterm, demonstrating the full app lifecycle in one example
+   - Note: crossterm may need to be an explicit `Cargo.toml` dependency for event handling (verify during info gathering)
    - Complete compilable code example
 
 2. **Core Concepts** (~50 lines)
@@ -59,35 +61,41 @@ description: >
    - Selection guide: which widget for which use case
    - Link to `references/widgets.md` for full details
 
-5. **Event Handling** (~60 lines)
-   - crossterm EventStream / poll pattern
+5. **Event Handling** (~50 lines)
+   - crossterm poll/read pattern (event loop already shown in Quick Start; this section covers details)
    - KeyEvent matching with pattern matching
-   - Basic event loop example
+   - Mouse events and resize events
 
 6. **Styling** (~40 lines)
    - Style::new(), Color enum, Modifier flags
    - Stylize trait chain notation (e.g., "text".bold().red())
    - Style composition and precedence
 
-7. **Testing** (~50 lines)
+7. **Navigation Guide** (~10 lines)
+   - When to read each reference file:
+     - `references/widgets.md` — when implementing or debugging a specific widget
+     - `references/layout-advanced.md` — when designing complex or nested layouts
+     - `references/custom-widgets.md` — when creating a new custom widget
+     - `references/patterns.md` — when designing app architecture or adding new screens
+
+8. **Testing** (~50 lines)
    - TestBackend for rendering tests
    - insta snapshot testing integration
    - Example test case
 
 ## References Content
 
-### references/widgets.md (~300-400 lines)
+### references/widgets.md (~400-500 lines)
 
 Per-widget format:
 - One-line purpose description
 - Basic construction example (code)
 - Key methods/options
 
-Widgets covered:
-- Block, Paragraph, List, Table, Tabs
-- Gauge, LineGauge, Sparkline, BarChart
-- Chart (Dataset + Axis), Canvas
-- Scrollbar, Clear, Calendar
+Widgets covered (complex widgets get more space, simple ones stay terse):
+- **Detailed** (~40-50 lines each): Table, Chart (Dataset + Axis), Canvas, List
+- **Standard** (~20-30 lines each): Block, Paragraph, Tabs, Scrollbar, BarChart
+- **Brief** (~10-15 lines each): Gauge, LineGauge, Sparkline, Clear, Calendar
 
 Table of contents at top for navigation.
 
@@ -116,8 +124,8 @@ Table of contents at top.
 - **Component pattern**: Widget + State + Action bundled together
 - **State management**: App struct for global state
 - **Multi-screen**: enum-based screen switching
-- **Error handling**: panic hook setup, terminal restoration
-- **Async integration**: tokio integration pattern
+- **Error handling**: panic hook setup with color_eyre, terminal restoration
+- **Async integration**: tokio integration pattern (note: requires adding tokio dependency)
 - **Graceful shutdown**: signal handling
 
 Table of contents at top.
@@ -129,7 +137,8 @@ Table of contents at top.
 3. Study `examples/` for 0.30.0-compatible code patterns
 4. Examine `src/` public API for accurate signatures
 5. Check CHANGELOG/BREAKING_CHANGES for 0.30.0-specific changes
-6. Write skill with compilable code examples based on repository sources
+6. Verify crossterm dependency requirements (re-export vs explicit dependency)
+7. Write skill with compilable code examples based on repository sources
 
 ## Design Decisions
 
