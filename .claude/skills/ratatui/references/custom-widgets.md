@@ -1,5 +1,13 @@
 # Custom Widget Authoring (ratatui 0.30.x)
 
+## Table of Contents
+
+- [Widget Trait](#widget-trait)
+- [StatefulWidget Trait](#statefulwidget-trait)
+- [WidgetRef Trait (Unstable)](#widgetref-trait-unstable)
+- [Buffer Operations](#buffer-operations)
+- [Practical Example](#practical-example)
+
 ## Widget Trait
 
 Core rendering trait. Consumes `self` by value.

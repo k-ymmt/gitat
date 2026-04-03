@@ -153,7 +153,7 @@ terminal, (2) print the color_eyre report.
 ```rust
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
-    let terminal = ratatui::init();
+    let mut terminal = ratatui::init();
     let result = App::new().run(&mut terminal);
     ratatui::restore();  // Always runs before error propagation
     result
@@ -214,9 +214,9 @@ impl App {
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
-    let terminal = ratatui::init();
+    let mut terminal = ratatui::init();
     let result = App { should_quit: false, data: vec![], loading: true }
-        .run(terminal).await;
+        .run(&mut terminal).await;
     ratatui::restore();
     result
 }
@@ -245,8 +245,8 @@ fn handle_key(&mut self, key: KeyEvent) {
 With `ratatui::run()`, restoration is automatic. For manual control:
 
 ```rust
-let terminal = ratatui::init();
-let result = app.run(terminal);
+let mut terminal = ratatui::init();
+let result = app.run(&mut terminal);
 ratatui::restore();  // Runs even if app.run() returned Err
 result?;
 ```
