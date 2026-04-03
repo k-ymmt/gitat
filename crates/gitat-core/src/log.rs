@@ -59,12 +59,21 @@ pub fn parse_log(output: &str) -> Result<Vec<CommitInfo>, GitError> {
     Ok(commits)
 }
 
-pub fn get_log(runner: &dyn CommandRunner, limit: usize) -> Result<Vec<CommitInfo>, GitError> {
-    let output = runner.run(&[
-        "log",
-        &format!("--max-count={limit}"),
-        &format!("--format={LOG_FORMAT}"),
-    ])?;
+pub fn get_log(
+    runner: &dyn CommandRunner,
+    limit: usize,
+    branch: Option<&str>,
+) -> Result<Vec<CommitInfo>, GitError> {
+    let mut args = vec![
+        "log".to_string(),
+        format!("--max-count={limit}"),
+        format!("--format={LOG_FORMAT}"),
+    ];
+    if let Some(b) = branch {
+        args.push(b.to_string());
+    }
+    let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let output = runner.run(&arg_refs)?;
     parse_log(&output)
 }
 
