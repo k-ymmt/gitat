@@ -20,6 +20,34 @@ gitat is a terminal-based Git client built with Rust and ratatui 0.30.x. It aims
 - Configuration file / custom keybindings
 - Syntax highlighting in diff
 
+## Concurrency Model
+
+MVP uses synchronous git command execution on the main thread. Long-running operations (push, pull, fetch) will block the UI. This is an acceptable tradeoff for MVP simplicity. Post-MVP, these can be moved to `std::thread::spawn` with a channel-based notification back to the event loop.
+
+## Event Loop
+
+The main event loop uses crossterm's polling model:
+
+```rust
+loop {
+    terminal.draw(|f| ui::render(f, &app))?;
+
+    if crossterm::event::poll(Duration::from_millis(100))? {
+        match crossterm::event::read()? {
+            Event::Key(key) => app.handle_key(key),
+            Event::Resize(w, h) => app.handle_resize(w, h),
+            _ => {}
+        }
+    }
+
+    if app.should_quit {
+        break;
+    }
+}
+```
+
+Tick rate of 100ms provides responsive UI without busy-waiting. Data refresh (git status, etc.) is triggered by user actions, not polling.
+
 ## Architecture
 
 ### Workspace Structure
@@ -148,8 +176,12 @@ pub struct BranchInfo {
 // conflict.rs
 pub struct ConflictFile {
     pub path: String,
-    pub ours: Vec<String>,
-    pub theirs: Vec<String>,
+    pub regions: Vec<ConflictRegion>,
+}
+
+pub enum ConflictRegion {
+    Clean(Vec<String>),
+    Conflict { ours: Vec<String>, theirs: Vec<String> },
 }
 ```
 
