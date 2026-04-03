@@ -19,6 +19,15 @@ pub struct StatusEntry {
     pub worktree_status: FileStatus,
 }
 
+impl StatusEntry {
+    pub fn is_staged(&self) -> bool {
+        !matches!(
+            self.index_status,
+            FileStatus::Unmodified | FileStatus::Untracked
+        )
+    }
+}
+
 fn parse_file_status(c: char) -> FileStatus {
     match c {
         'M' => FileStatus::Modified,
@@ -119,5 +128,45 @@ R  old_name.rs
 ";
         let result = parse_status(input).unwrap();
         insta::assert_debug_snapshot!(result);
+    }
+
+    #[test]
+    fn test_is_staged_modified_in_index() {
+        let entry = StatusEntry {
+            path: "file.rs".to_string(),
+            index_status: FileStatus::Modified,
+            worktree_status: FileStatus::Unmodified,
+        };
+        assert!(entry.is_staged());
+    }
+
+    #[test]
+    fn test_is_staged_added_in_index() {
+        let entry = StatusEntry {
+            path: "file.rs".to_string(),
+            index_status: FileStatus::Added,
+            worktree_status: FileStatus::Unmodified,
+        };
+        assert!(entry.is_staged());
+    }
+
+    #[test]
+    fn test_is_staged_unmodified_not_staged() {
+        let entry = StatusEntry {
+            path: "file.rs".to_string(),
+            index_status: FileStatus::Unmodified,
+            worktree_status: FileStatus::Modified,
+        };
+        assert!(!entry.is_staged());
+    }
+
+    #[test]
+    fn test_is_staged_untracked_not_staged() {
+        let entry = StatusEntry {
+            path: "file.rs".to_string(),
+            index_status: FileStatus::Untracked,
+            worktree_status: FileStatus::Untracked,
+        };
+        assert!(!entry.is_staged());
     }
 }
