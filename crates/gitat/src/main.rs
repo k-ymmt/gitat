@@ -41,6 +41,7 @@ fn run_app(
     runner: &ProcessRunner,
 ) -> Result<()> {
     loop {
+        app.clear_expired_status_message();
         terminal.draw(|f| {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)

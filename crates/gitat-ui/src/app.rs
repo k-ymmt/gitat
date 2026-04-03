@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use gitat_core::branch::BranchInfo;
 use gitat_core::commit_detail::CommitFileEntry;
 use gitat_core::conflict::ConflictFile;
@@ -77,6 +79,7 @@ pub struct App {
     pub log_entries: Vec<CommitInfo>,
     pub current_diff: Option<Vec<DiffFile>>,
     pub status_message: Option<String>,
+    pub status_message_set_at: Option<Instant>,
     pub conflict_state: Option<ConflictEditorState>,
     pub conflict_file: Option<ConflictFile>,
     pub commit_detail_commit: Option<CommitInfo>,
@@ -103,6 +106,7 @@ impl App {
             log_entries: Vec::new(),
             current_diff: None,
             status_message: None,
+            status_message_set_at: None,
             conflict_state: None,
             conflict_file: None,
             commit_detail_commit: None,
@@ -137,6 +141,16 @@ impl App {
 
     pub fn set_status_message(&mut self, msg: impl Into<String>) {
         self.status_message = Some(msg.into());
+        self.status_message_set_at = Some(Instant::now());
+    }
+
+    pub fn clear_expired_status_message(&mut self) {
+        if let Some(set_at) = self.status_message_set_at {
+            if set_at.elapsed() > Duration::from_secs(3) {
+                self.status_message = None;
+                self.status_message_set_at = None;
+            }
+        }
     }
 }
 
@@ -165,5 +179,23 @@ mod tests {
         assert_eq!(app.mode, Mode::Normal);
         assert_eq!(app.panel, Panel::Left);
         assert!(!app.should_quit);
+    }
+
+    #[test]
+    fn test_status_message_not_cleared_before_expiry() {
+        let mut app = App::new();
+        app.set_status_message("hello");
+        app.clear_expired_status_message();
+        assert!(app.status_message.is_some());
+    }
+
+    #[test]
+    fn test_status_message_cleared_after_expiry() {
+        let mut app = App::new();
+        app.set_status_message("hello");
+        app.status_message_set_at = Some(Instant::now() - Duration::from_secs(4));
+        app.clear_expired_status_message();
+        assert!(app.status_message.is_none());
+        assert!(app.status_message_set_at.is_none());
     }
 }
