@@ -351,15 +351,15 @@ fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
         }
     };
 
-    app.commit_detail_commit = Some(commit.clone());
+    app.commit_detail_commit = Some(commit);
     app.commit_detail_files = files;
     app.commit_detail_file_state = ratatui::widgets::ListState::default();
+    app.commit_detail_panel = Panel::Left;
+    app.commit_detail_diff_state = crate::widgets::side_by_side_diff::SideBySideDiffState::new();
     if !app.commit_detail_files.is_empty() {
         app.commit_detail_file_state.select(Some(0));
         load_commit_detail_diff(app, runner);
     }
-    app.commit_detail_panel = Panel::Left;
-    app.commit_detail_diff_state = crate::widgets::side_by_side_diff::SideBySideDiffState::new();
     app.mode = Mode::CommitDetail;
 }
 
