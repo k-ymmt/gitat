@@ -1,6 +1,4 @@
 use crate::GitError;
-use crate::diff::{self, DiffFile};
-use crate::runner::CommandRunner;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileChangeStatus {
