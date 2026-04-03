@@ -82,8 +82,7 @@ pub fn parse_diff(output: &str) -> Result<Vec<DiffFile>, GitError> {
             // Flush current file
             flush_file(&mut files, &mut cur_old_path, &mut cur_new_path, &mut cur_hunks);
             // A new file entry begins; paths will be set by --- and +++ lines
-        } else if line.starts_with("--- ") {
-            let path_str = &line[4..];
+        } else if let Some(path_str) = line.strip_prefix("--- ") {
             let path = if path_str == "/dev/null" {
                 "/dev/null".to_string()
             } else if let Some(stripped) = path_str.strip_prefix("a/") {
@@ -92,8 +91,7 @@ pub fn parse_diff(output: &str) -> Result<Vec<DiffFile>, GitError> {
                 path_str.to_string()
             };
             cur_old_path = Some(path);
-        } else if line.starts_with("+++ ") {
-            let path_str = &line[4..];
+        } else if let Some(path_str) = line.strip_prefix("+++ ") {
             let path = if path_str == "/dev/null" {
                 "/dev/null".to_string()
             } else if let Some(stripped) = path_str.strip_prefix("b/") {

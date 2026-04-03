@@ -113,7 +113,7 @@ fn render_file_list(f: &mut Frame, app: &mut App, area: Rect) {
         .block(block)
         .highlight_style(Theme::selected());
 
-    f.render_stateful_widget(list, area, &mut app.file_list_state);
+    f.render_stateful_widget(list, area, &mut app.status_list_state);
 }
 
 fn render_diff_detail(f: &mut Frame, app: &mut App, area: Rect) {

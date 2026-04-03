@@ -24,6 +24,12 @@ pub struct SideBySideDiffState {
     hunk_offsets: Vec<u16>,
 }
 
+impl Default for SideBySideDiffState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SideBySideDiffState {
     pub fn new() -> Self {
         Self {
@@ -269,8 +275,7 @@ fn write_segments(
 
     // Apply horizontal scroll: skip `scroll_x` characters
     let visible_chars = chars.into_iter().skip(scroll_x as usize);
-    let mut col: u16 = 0;
-    for (ch, style) in visible_chars {
+    for (col, (ch, style)) in (0_u16..).zip(visible_chars) {
         if col >= max_width {
             break;
         }
@@ -279,7 +284,6 @@ fn write_segments(
             cell.set_char(ch);
             cell.set_style(style);
         }
-        col += 1;
     }
 }
 

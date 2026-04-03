@@ -53,6 +53,12 @@ impl MockRunner {
     }
 }
 
+impl Default for MockRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CommandRunner for MockRunner {
     fn run(&self, args: &[&str]) -> Result<String, GitError> {
         let key = args.join(" ");

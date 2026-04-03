@@ -15,6 +15,7 @@ pub struct ConflictEditorState {
     pub cursor_col: usize,
     pub editing: bool,
     pub scroll_y: u16,
+    choices: Vec<bool>, // true = ours, false = theirs; indexed by conflict number
 }
 
 impl ConflictEditorState {
@@ -34,24 +35,27 @@ impl ConflictEditorState {
             cursor_col: 0,
             editing: false,
             scroll_y: 0,
+            choices: vec![true; total_conflicts], // default all to ours
         };
 
         // Initialize result with ours content
-        state.apply_choice(file, true);
+        state.rebuild_result(file);
         state
     }
 
     pub fn use_ours(&mut self, file: &ConflictFile) {
-        self.apply_choice(file, true);
+        self.choices[self.current_conflict] = true;
+        self.rebuild_result(file);
     }
 
     pub fn use_theirs(&mut self, file: &ConflictFile) {
-        self.apply_choice(file, false);
+        self.choices[self.current_conflict] = false;
+        self.rebuild_result(file);
     }
 
-    /// Rebuild result_lines by walking all regions; for the current conflict index,
-    /// use the chosen side (ours if `use_ours` is true, theirs otherwise).
-    fn apply_choice(&mut self, file: &ConflictFile, use_ours: bool) {
+    /// Rebuild result_lines by walking all regions, using the stored choice
+    /// for each conflict.
+    fn rebuild_result(&mut self, file: &ConflictFile) {
         let mut result = Vec::new();
         let mut conflict_idx = 0;
 
@@ -61,15 +65,10 @@ impl ConflictEditorState {
                     result.extend(lines.iter().cloned());
                 }
                 ConflictRegion::Conflict { ours, theirs } => {
-                    if conflict_idx == self.current_conflict {
-                        if use_ours {
-                            result.extend(ours.iter().cloned());
-                        } else {
-                            result.extend(theirs.iter().cloned());
-                        }
-                    } else {
-                        // For other conflicts, keep what was previously chosen (ours as default)
+                    if self.choices[conflict_idx] {
                         result.extend(ours.iter().cloned());
+                    } else {
+                        result.extend(theirs.iter().cloned());
                     }
                     conflict_idx += 1;
                 }
@@ -248,5 +247,30 @@ mod tests {
         state.use_theirs(&file);
         state.use_ours(&file);
         assert_eq!(state.result_lines, vec!["line1", "ours_line", "line3"]);
+    }
+
+    #[test]
+    fn test_choices_persist_across_conflicts() {
+        let file = ConflictFile {
+            path: "test.rs".to_string(),
+            regions: vec![
+                ConflictRegion::Conflict {
+                    ours: vec!["a".to_string()],
+                    theirs: vec!["b".to_string()],
+                },
+                ConflictRegion::Conflict {
+                    ours: vec!["c".to_string()],
+                    theirs: vec!["d".to_string()],
+                },
+            ],
+        };
+        let mut state = ConflictEditorState::from_conflict_file(&file);
+        // Resolve first conflict with theirs
+        state.use_theirs(&file);
+        // Move to second, resolve with ours
+        state.next_conflict();
+        state.use_ours(&file);
+        // First should still be theirs, second should be ours
+        assert_eq!(state.result_lines, vec!["b", "c"]);
     }
 }

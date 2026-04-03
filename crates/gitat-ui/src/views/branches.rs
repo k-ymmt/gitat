@@ -29,5 +29,5 @@ pub fn render(f: &mut Frame, app: &mut App, area: Rect) {
         .block(block)
         .highlight_style(Theme::selected());
 
-    f.render_stateful_widget(list, area, &mut app.file_list_state);
+    f.render_stateful_widget(list, area, &mut app.branches_list_state);
 }

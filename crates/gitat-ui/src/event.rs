@@ -52,17 +52,19 @@ fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
         KeyCode::Char('j') | KeyCode::Down => {
             let len = list_len(app);
             if len > 0 {
-                let i = match app.file_list_state.selected() {
+                let state = app.current_list_state_mut();
+                let i = match state.selected() {
                     Some(i) => (i + 1).min(len - 1),
                     None => 0,
                 };
-                app.file_list_state.select(Some(i));
+                state.select(Some(i));
             }
         }
         KeyCode::Char('k') | KeyCode::Up => {
-            if let Some(i) = app.file_list_state.selected() {
+            let state = app.current_list_state_mut();
+            if let Some(i) = state.selected() {
                 let next = if i == 0 { 0 } else { i - 1 };
-                app.file_list_state.select(Some(next));
+                state.select(Some(next));
             }
         }
         KeyCode::Char('s') => {
@@ -232,7 +234,7 @@ fn list_len(app: &App) -> usize {
 }
 
 fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
-    let idx = match app.file_list_state.selected() {
+    let idx = match app.status_list_state.selected() {
         Some(i) => i,
         None => return,
     };
@@ -264,7 +266,7 @@ fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
 }
 
 fn delete_selected_branch(app: &mut App, runner: &dyn CommandRunner) {
-    let idx = match app.file_list_state.selected() {
+    let idx = match app.branches_list_state.selected() {
         Some(i) => i,
         None => return,
     };
@@ -291,7 +293,7 @@ fn load_diff_for_selected(app: &mut App, runner: &dyn CommandRunner) {
     if app.tab != Tab::Status {
         return;
     }
-    let idx = match app.file_list_state.selected() {
+    let idx = match app.status_list_state.selected() {
         Some(i) => i,
         None => return,
     };
@@ -309,7 +311,6 @@ fn load_diff_for_selected(app: &mut App, runner: &dyn CommandRunner) {
     match gitat_core::diff::get_diff_for_file(runner, &entry.path, staged) {
         Ok(diff) => {
             app.current_diff = Some(diff);
-            app.diff_scroll = (0, 0);
         }
         Err(e) => {
             app.set_status_message(format!("Failed to load diff: {e}"));

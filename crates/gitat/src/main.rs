@@ -17,7 +17,7 @@ fn main() -> Result<()> {
     // Setup panic hook to restore terminal
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
-        let _ = ratatui::restore();
+        ratatui::restore();
         original_hook(panic_info);
     }));
 
@@ -86,14 +86,13 @@ fn run_app(
             f.render_widget(status_bar, chunks[2]);
 
             // Conflict editor overlay
-            if matches!(app.mode, Mode::Conflict { .. }) {
-                if let (Some(file), Some(state)) =
+            if matches!(app.mode, Mode::Conflict { .. })
+                && let (Some(file), Some(state)) =
                     (&app.conflict_file, &mut app.conflict_state)
-                {
-                    let editor =
-                        gitat_ui::widgets::conflict_editor::ConflictEditor::new(file);
-                    f.render_stateful_widget(editor, chunks[1], state);
-                }
+            {
+                let editor =
+                    gitat_ui::widgets::conflict_editor::ConflictEditor::new(file);
+                f.render_stateful_widget(editor, chunks[1], state);
             }
 
             // Popups
@@ -110,10 +109,10 @@ fn run_app(
             break;
         }
 
-        if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                handle_key(app, key, runner);
-            }
+        if event::poll(Duration::from_millis(100))?
+            && let Event::Key(key) = event::read()?
+        {
+            handle_key(app, key, runner);
         }
     }
 

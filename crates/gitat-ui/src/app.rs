@@ -66,8 +66,9 @@ pub struct App {
     pub mode: Mode,
     pub panel: Panel,
     pub should_quit: bool,
-    pub file_list_state: ListState,
-    pub diff_scroll: (u16, u16),
+    pub status_list_state: ListState,
+    pub log_list_state: ListState,
+    pub branches_list_state: ListState,
     pub diff_state: SideBySideDiffState,
     pub status: Vec<StatusEntry>,
     pub branches: Vec<BranchInfo>,
@@ -85,8 +86,9 @@ impl App {
             mode: Mode::Normal,
             panel: Panel::Left,
             should_quit: false,
-            file_list_state: ListState::default(),
-            diff_scroll: (0, 0),
+            status_list_state: ListState::default(),
+            log_list_state: ListState::default(),
+            branches_list_state: ListState::default(),
             diff_state: SideBySideDiffState::new(),
             status: Vec::new(),
             branches: Vec::new(),
@@ -95,6 +97,15 @@ impl App {
             status_message: None,
             conflict_state: None,
             conflict_file: None,
+        }
+    }
+
+    pub fn current_list_state_mut(&mut self) -> &mut ListState {
+        match self.tab {
+            Tab::Status => &mut self.status_list_state,
+            Tab::Branches => &mut self.branches_list_state,
+            Tab::Log => &mut self.log_list_state,
+            Tab::Stash => &mut self.status_list_state, // fallback
         }
     }
 
@@ -112,6 +123,12 @@ impl App {
 
     pub fn set_status_message(&mut self, msg: impl Into<String>) {
         self.status_message = Some(msg.into());
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
