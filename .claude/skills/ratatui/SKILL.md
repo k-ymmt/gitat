@@ -125,10 +125,10 @@ frame.buffer_mut() -> &mut Buffer              // direct buffer access
 
 ### Rect
 
-A rectangle: `x`, `y`, `width`, `height` (all `u16`). New in 0.30:
+A rectangle: `x`, `y`, `width`, `height` (all `u16`). Centering helpers (new in 0.30):
 
 ```rust
-Rect::centered(Constraint::Length(60), Constraint::Length(20))
+let popup = area.centered(Constraint::Length(60), Constraint::Length(20));
 ```
 
 ### Widget Traits
@@ -427,7 +427,10 @@ let merged = base.patch(highlight); // fg=Yellow, bg=Black, bold
 
 | Reference File | When to Read |
 |---|---|
-| `references/widgets.md` | Full widget API details, advanced configuration, edge cases |
+| `references/widgets.md` | Implementing or debugging a specific widget |
+| `references/layout-advanced.md` | Designing complex or nested layouts |
+| `references/custom-widgets.md` | Creating a new custom widget |
+| `references/patterns.md` | Designing app architecture or adding screens |
 
 ---
 
@@ -464,18 +467,7 @@ fn test_ui_snapshot() {
     let backend = TestBackend::new(60, 20);
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.draw(|frame| App::default().render(frame)).unwrap();
-    let buf = terminal.backend().buffer().clone();
-    // Convert buffer to string: iterate rows, collect cell symbols
-    let area = buf.area();
-    let content: String = (area.y..area.y + area.height)
-        .map(|y| {
-            let row: String = (area.x..area.x + area.width)
-                .map(|x| buf[(x, y)].symbol().to_string())
-                .collect();
-            row + "\n"
-        })
-        .collect();
-    insta::assert_snapshot!(content);
+    insta::assert_debug_snapshot!(terminal.backend().buffer());
 }
 ```
 
