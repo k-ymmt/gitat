@@ -4,6 +4,7 @@ use crate::GitError;
 
 pub trait CommandRunner {
     fn run(&self, args: &[&str]) -> Result<String, GitError>;
+    fn run_with_stdin(&self, args: &[&str], stdin_data: &str) -> Result<String, GitError>;
 }
 
 pub struct ProcessRunner {
@@ -22,6 +23,40 @@ impl CommandRunner for ProcessRunner {
             .args(args)
             .current_dir(&self.repo_path)
             .output()
+            .map_err(|e| GitError::IoError(e.to_string()))?;
+
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        } else {
+            Err(GitError::CommandFailed {
+                command: format!("git {}", args.join(" ")),
+                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                exit_code: output.status.code().unwrap_or(-1),
+            })
+        }
+    }
+
+    fn run_with_stdin(&self, args: &[&str], stdin_data: &str) -> Result<String, GitError> {
+        use std::io::Write;
+        use std::process::Stdio;
+
+        let mut child = std::process::Command::new("git")
+            .args(args)
+            .current_dir(&self.repo_path)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| GitError::IoError(e.to_string()))?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(stdin_data.as_bytes())
+                .map_err(|e| GitError::IoError(e.to_string()))?;
+        }
+
+        let output = child
+            .wait_with_output()
             .map_err(|e| GitError::IoError(e.to_string()))?;
 
         if output.status.success() {
@@ -71,6 +106,10 @@ impl CommandRunner for MockRunner {
                 exit_code: 1,
             }))
     }
+
+    fn run_with_stdin(&self, args: &[&str], _stdin_data: &str) -> Result<String, GitError> {
+        self.run(args)
+    }
 }
 
 #[cfg(test)]
@@ -90,5 +129,13 @@ mod tests {
         let runner = ProcessRunner::new(PathBuf::from("."));
         let result = runner.run(&["not-a-real-command"]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_mock_runner_run_with_stdin() {
+        let runner = MockRunner::new()
+            .with_response("apply --cached", "");
+        let result = runner.run_with_stdin(&["apply", "--cached"], "patch content");
+        assert!(result.is_ok());
     }
 }
