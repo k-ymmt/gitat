@@ -12,12 +12,6 @@
 - [ ] リネーム時の旧パス情報を保持 — `CommitFileEntry` に `old_path: Option<String>` を追加し「旧名 → 新名」表示を可能にする
 - [ ] j/k ナビゲーション時の不要な diff リロードを回避 — 選択が変わらない場合はスキップする最適化
 
-## リファクタリング
-
-- [x] `is_staged` 判定ロジックの重複排除 — `StatusEntry::is_staged()` メソッドとして `gitat-core` に抽出済み
-- [x] `event.rs` のモジュール分割 — `event/mod.rs`, `normal.rs`, `staging.rs`, `commit_detail.rs` に分割済み
-- [x] `stage_or_unstage_hunk` の diff リロード失敗時にステータスメッセージでユーザーに通知
-
 ## テスト
 
 - [ ] 統合テスト: ステージング後の diff 読み込み、タブ切り替え時の状態保持
