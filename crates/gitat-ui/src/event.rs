@@ -10,6 +10,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
         Mode::Help => handle_help(app, key),
         Mode::Search { .. } => handle_search(app, key),
         Mode::Conflict { .. } => handle_conflict(app, key, runner),
+        Mode::CommitDetail => {}
     }
 }
 

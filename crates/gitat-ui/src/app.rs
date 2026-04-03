@@ -1,4 +1,5 @@
 use gitat_core::branch::BranchInfo;
+use gitat_core::commit_detail::CommitFileEntry;
 use gitat_core::conflict::ConflictFile;
 use gitat_core::diff::DiffFile;
 use gitat_core::log::CommitInfo;
@@ -53,6 +54,7 @@ pub enum Mode {
     Conflict { file: String },
     Search { query: String },
     Help,
+    CommitDetail,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -77,6 +79,12 @@ pub struct App {
     pub status_message: Option<String>,
     pub conflict_state: Option<ConflictEditorState>,
     pub conflict_file: Option<ConflictFile>,
+    pub commit_detail_commit: Option<CommitInfo>,
+    pub commit_detail_files: Vec<CommitFileEntry>,
+    pub commit_detail_file_state: ListState,
+    pub commit_detail_panel: Panel,
+    pub commit_detail_diff: Option<Vec<DiffFile>>,
+    pub commit_detail_diff_state: SideBySideDiffState,
 }
 
 impl App {
@@ -97,6 +105,12 @@ impl App {
             status_message: None,
             conflict_state: None,
             conflict_file: None,
+            commit_detail_commit: None,
+            commit_detail_files: Vec::new(),
+            commit_detail_file_state: ListState::default(),
+            commit_detail_panel: Panel::Left,
+            commit_detail_diff: None,
+            commit_detail_diff_state: SideBySideDiffState::new(),
         }
     }
 
