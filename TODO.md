@@ -14,9 +14,9 @@
 
 ## リファクタリング
 
-- [ ] `is_staged` 判定ロジックの重複排除 — `event.rs` 内の3箇所で同一パターンが繰り返されている。ヘルパー関数への抽出
-- [ ] `event.rs` のモジュール分割 — キー処理、ステージング、diff ロード等の責務が1ファイルに集中（700行超）
-- [ ] `stage_or_unstage_hunk` の diff リロード失敗時にステータスメッセージでユーザーに通知
+- [x] `is_staged` 判定ロジックの重複排除 — `StatusEntry::is_staged()` メソッドとして `gitat-core` に抽出済み
+- [x] `event.rs` のモジュール分割 — `event/mod.rs`, `normal.rs`, `staging.rs`, `commit_detail.rs` に分割済み
+- [x] `stage_or_unstage_hunk` の diff リロード失敗時にステータスメッセージでユーザーに通知
 
 ## テスト
 
