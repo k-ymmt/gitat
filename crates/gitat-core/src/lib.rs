@@ -1,4 +1,5 @@
 pub mod runner;
+pub mod status;
 
 use thiserror::Error;
 
