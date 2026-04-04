@@ -8,7 +8,7 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::theme::Theme;
 
-/// A paired row in the side-by-side display
+/// A paired row in the unified diff display
 struct DiffRow {
     left_line_no: Option<u32>,
     left_content: Option<String>,
@@ -18,20 +18,20 @@ struct DiffRow {
     right_kind: DiffLineKind,
 }
 
-pub struct SideBySideDiffState {
+pub struct UnifiedDiffState {
     pub scroll_y: u16,
     pub scroll_x: u16,
     pub current_hunk: usize,
     hunk_offsets: Vec<u16>,
 }
 
-impl Default for SideBySideDiffState {
+impl Default for UnifiedDiffState {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SideBySideDiffState {
+impl UnifiedDiffState {
     pub fn new() -> Self {
         Self {
             scroll_y: 0,
@@ -72,12 +72,12 @@ impl SideBySideDiffState {
     }
 }
 
-pub struct SideBySideDiff<'a> {
+pub struct UnifiedDiff<'a> {
     diff_files: &'a [DiffFile],
     block: Option<Block<'a>>,
 }
 
-impl<'a> SideBySideDiff<'a> {
+impl<'a> UnifiedDiff<'a> {
     pub fn new(diff_files: &'a [DiffFile]) -> Self {
         Self {
             diff_files,
@@ -302,8 +302,8 @@ fn write_segments(
     }
 }
 
-impl StatefulWidget for SideBySideDiff<'_> {
-    type State = SideBySideDiffState;
+impl StatefulWidget for UnifiedDiff<'_> {
+    type State = UnifiedDiffState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         // Handle block
@@ -573,10 +573,10 @@ mod tests {
                 ],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -584,7 +584,7 @@ mod tests {
 
     #[test]
     fn test_hunk_navigation() {
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         state.hunk_offsets = vec![0, 10, 25];
         state.next_hunk();
         assert_eq!(state.current_hunk, 1);
@@ -643,10 +643,10 @@ mod tests {
         let backend = TestBackend::new(60, 6);
         let mut terminal = Terminal::new(backend).unwrap();
         let diff = make_simple_diff();
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -682,10 +682,10 @@ mod tests {
                 ],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -721,10 +721,10 @@ mod tests {
                 ],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -737,11 +737,11 @@ mod tests {
         let backend = TestBackend::new(60, 4);
         let mut terminal = Terminal::new(backend).unwrap();
         let diff = make_simple_diff();
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         state.scroll_x = 4; // scroll right by 4 chars
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -754,10 +754,10 @@ mod tests {
         let backend = TestBackend::new(30, 4);
         let mut terminal = Terminal::new(backend).unwrap();
         let diff = make_simple_diff();
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -827,10 +827,10 @@ mod tests {
                 },
             ],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -872,10 +872,10 @@ mod tests {
                 ],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -903,11 +903,11 @@ mod tests {
                 }],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         state.scroll_x = 4; // skip 2 CJK chars (4 display columns)
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
