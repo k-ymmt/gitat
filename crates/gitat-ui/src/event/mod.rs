@@ -91,16 +91,43 @@ fn handle_help(app: &mut App, key: KeyEvent) {
 fn handle_search(app: &mut App, key: KeyEvent) {
     match key.code {
         KeyCode::Esc => {
+            if let Some(cursor) = app.pre_search_cursor {
+                app.log_list_state.select(Some(cursor));
+            }
+            app.filtered_log_indices = None;
+            app.pre_search_cursor = None;
             app.mode = Mode::Normal;
+        }
+        KeyCode::Enter => {
+            // Resolve filtered selection to original log_entries index
+            let original_index = app
+                .log_list_state
+                .selected()
+                .and_then(|sel| {
+                    app.filtered_log_indices
+                        .as_ref()
+                        .and_then(|indices| indices.get(sel).copied())
+                });
+            app.filtered_log_indices = None;
+            app.pre_search_cursor = None;
+            app.mode = Mode::Normal;
+            // Set cursor to original index + 1 (offset for uncommitted row)
+            if let Some(idx) = original_index {
+                app.log_list_state.select(Some(idx + 1));
+            }
         }
         KeyCode::Backspace => {
             if let Mode::Search { query } = &mut app.mode {
                 query.pop();
+                let q = query.clone();
+                app.update_search_filter(&q);
             }
         }
         KeyCode::Char(c) => {
             if let Mode::Search { query } = &mut app.mode {
                 query.push(c);
+                let q = query.clone();
+                app.update_search_filter(&q);
             }
         }
         _ => {}
@@ -198,5 +225,106 @@ mod tests {
         let runner = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
         assert_eq!(app.mode, Mode::Normal);
+    }
+
+    #[test]
+    fn test_search_typing_filters_log() {
+        let mut app = App::new();
+        app.log_entries = vec![
+            gitat_core::log::CommitInfo {
+                hash: "aaa".into(),
+                short_hash: "aaa".into(),
+                author: "Alice".into(),
+                date: "2026-01-01".into(),
+                message: "fix bug".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+            gitat_core::log::CommitInfo {
+                hash: "bbb".into(),
+                short_hash: "bbb".into(),
+                author: "Bob".into(),
+                date: "2026-01-02".into(),
+                message: "add feature".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+        ];
+        app.mode = Mode::Search { query: String::new() };
+        let runner = MockRunner::new();
+
+        // Type 'f' — both match ("fix" and "feature")
+        handle_key(&mut app, mock_key(KeyCode::Char('f')), &runner);
+        assert!(matches!(&app.mode, Mode::Search { query } if query == "f"));
+        assert_eq!(app.filtered_log_indices, Some(vec![0, 1]));
+
+        // Type 'i' — only "fix bug" matches
+        handle_key(&mut app, mock_key(KeyCode::Char('i')), &runner);
+        assert!(matches!(&app.mode, Mode::Search { query } if query == "fi"));
+        assert_eq!(app.filtered_log_indices, Some(vec![0]));
+
+        // Backspace — back to "f", both match again
+        handle_key(&mut app, mock_key(KeyCode::Backspace), &runner);
+        assert!(matches!(&app.mode, Mode::Search { query } if query == "f"));
+        assert_eq!(app.filtered_log_indices, Some(vec![0, 1]));
+    }
+
+    #[test]
+    fn test_search_enter_confirms_selection() {
+        let mut app = App::new();
+        app.log_entries = vec![
+            gitat_core::log::CommitInfo {
+                hash: "aaa".into(),
+                short_hash: "aaa".into(),
+                author: "Alice".into(),
+                date: "2026-01-01".into(),
+                message: "first".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+            gitat_core::log::CommitInfo {
+                hash: "bbb".into(),
+                short_hash: "bbb".into(),
+                author: "Bob".into(),
+                date: "2026-01-02".into(),
+                message: "second".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+            gitat_core::log::CommitInfo {
+                hash: "ccc".into(),
+                short_hash: "ccc".into(),
+                author: "Charlie".into(),
+                date: "2026-01-03".into(),
+                message: "third".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+        ];
+        app.pre_search_cursor = Some(0);
+        app.mode = Mode::Search { query: "second".into() };
+        app.update_search_filter("second");
+        // filtered_log_indices = Some([1]), selection = 0 (first filtered item)
+        let runner = MockRunner::new();
+
+        handle_key(&mut app, mock_key(KeyCode::Enter), &runner);
+        assert_eq!(app.mode, Mode::Normal);
+        assert_eq!(app.filtered_log_indices, None);
+        // Original index 1 maps to log_list_state index 2 (offset by 1 for uncommitted row)
+        assert_eq!(app.log_list_state.selected(), Some(2));
+    }
+
+    #[test]
+    fn test_search_esc_restores_cursor() {
+        let mut app = App::new();
+        app.pre_search_cursor = Some(5);
+        app.mode = Mode::Search { query: "test".into() };
+        app.filtered_log_indices = Some(vec![0, 2]);
+        let runner = MockRunner::new();
+
+        handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
+        assert_eq!(app.mode, Mode::Normal);
+        assert_eq!(app.filtered_log_indices, None);
+        assert_eq!(app.log_list_state.selected(), Some(5));
     }
 }
