@@ -51,12 +51,11 @@ async fn run_app(
     // Spawn blocking task for crossterm key input
     let (key_tx, mut key_rx) = mpsc::unbounded_channel();
     tokio::task::spawn_blocking(move || loop {
-        if event::poll(Duration::from_millis(100)).unwrap() {
-            if let Ok(ev) = event::read() {
-                if key_tx.send(ev).is_err() {
-                    break;
-                }
-            }
+        if event::poll(Duration::from_millis(100)).unwrap_or(false)
+            && let Ok(ev) = event::read()
+            && key_tx.send(ev).is_err()
+        {
+            break;
         }
     });
 
@@ -144,6 +143,7 @@ async fn run_app(
             Some(()) = fs_rx.recv() => {
                 app.refresh_status_and_log(runner);
             }
+            else => break,
         }
     }
 
