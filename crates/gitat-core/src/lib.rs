@@ -8,6 +8,7 @@ pub mod commit;
 pub mod commit_detail;
 pub mod remote;
 pub mod conflict;
+pub mod graph;
 
 use thiserror::Error;
 
