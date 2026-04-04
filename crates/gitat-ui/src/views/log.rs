@@ -6,7 +6,7 @@ use gitat_core::commit_detail::FileChangeStatus;
 use gitat_core::status::FileStatus;
 use crate::app::{App, Mode, Panel};
 use crate::theme::Theme;
-use crate::widgets::side_by_side_diff::SideBySideDiff;
+use crate::widgets::side_by_side_diff::{SideBySideDiff, SideBySideDiffState};
 
 pub fn render(f: &mut Frame, app: &mut App, area: Rect) {
     match app.mode {
@@ -17,6 +17,21 @@ pub fn render(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_log_list(f: &mut Frame, app: &mut App, area: Rect) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(area);
+
+    render_log_list_items(f, app, chunks[0]);
+
+    match app.log_list_state.selected() {
+        Some(0) => render_uncommitted_preview(f, app, chunks[1]),
+        Some(_) => render_commit_preview(f, app, chunks[1]),
+        None => {}
+    }
+}
+
+fn render_log_list_items(f: &mut Frame, app: &mut App, area: Rect) {
     let mut items: Vec<ListItem> = Vec::new();
 
     // Uncommitted changes item (always at index 0)
@@ -72,6 +87,100 @@ fn render_log_list(f: &mut Frame, app: &mut App, area: Rect) {
         .highlight_style(Theme::selected());
 
     f.render_stateful_widget(list, area, &mut app.log_list_state);
+}
+
+fn render_commit_preview(f: &mut Frame, app: &mut App, area: Rect) {
+    let commit = match &app.commit_detail_commit {
+        Some(c) => c,
+        None => return,
+    };
+
+    // Split: metadata (3 lines) + panels
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(0)])
+        .split(area);
+
+    // Metadata
+    let meta_lines = vec![
+        Line::from(vec![
+            Span::styled(&commit.short_hash, Theme::commit_hash()),
+            Span::raw("  "),
+            Span::raw(&commit.author),
+            Span::raw("  "),
+            Span::styled(&commit.date, Theme::diff_context()),
+        ]),
+        Line::from(Span::raw(&commit.message)),
+        Line::from(""),
+    ];
+    let meta = Paragraph::new(meta_lines)
+        .block(Block::default().borders(Borders::BOTTOM).border_style(Theme::border()));
+    f.render_widget(meta, chunks[0]);
+
+    // Two panels
+    let panels = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+        .split(chunks[1]);
+
+    render_commit_preview_files(f, app, panels[0]);
+    render_commit_preview_diff(f, app, panels[1]);
+}
+
+fn render_commit_preview_files(f: &mut Frame, app: &App, area: Rect) {
+    let items: Vec<ListItem> = app.commit_detail_files.iter().map(|entry| {
+        let (code, style) = match entry.status {
+            FileChangeStatus::Added => ("A", Theme::file_added()),
+            FileChangeStatus::Modified => ("M", Theme::commit_hash()),
+            FileChangeStatus::Deleted => ("D", Theme::file_unstaged()),
+            FileChangeStatus::Renamed => ("R", Theme::commit_ref()),
+        };
+        ListItem::new(Line::from(vec![
+            Span::styled(format!("{code} "), style),
+            Span::raw(&entry.path),
+        ]))
+    }).collect();
+
+    let block = Block::default()
+        .title(" Files ")
+        .borders(Borders::ALL)
+        .border_style(Theme::border());
+
+    let list = List::new(items).block(block);
+    f.render_widget(list, area);
+}
+
+fn render_commit_preview_diff(f: &mut Frame, app: &mut App, area: Rect) {
+    if let Some(ref diff_files) = app.commit_detail_diff {
+        let block = Block::default()
+            .title(" Diff ")
+            .borders(Borders::ALL)
+            .border_style(Theme::border());
+        let widget = SideBySideDiff::new(diff_files).block(block);
+        let mut state = SideBySideDiffState::new();
+        f.render_stateful_widget(widget, area, &mut state);
+    } else {
+        let block = Block::default()
+            .title(" Diff ")
+            .borders(Borders::ALL)
+            .border_style(Theme::border());
+        let placeholder = Paragraph::new("No diff available")
+            .block(block)
+            .style(Theme::diff_context());
+        f.render_widget(placeholder, area);
+    }
+}
+
+fn render_uncommitted_preview(f: &mut Frame, _app: &mut App, area: Rect) {
+    // Placeholder — implemented in Task 5
+    let block = Block::default()
+        .title(" Preview ")
+        .borders(Borders::ALL)
+        .border_style(Theme::border());
+    let placeholder = Paragraph::new("Loading...")
+        .block(block)
+        .style(Theme::diff_context());
+    f.render_widget(placeholder, area);
 }
 
 fn render_commit_detail(f: &mut Frame, app: &mut App, area: Rect) {
