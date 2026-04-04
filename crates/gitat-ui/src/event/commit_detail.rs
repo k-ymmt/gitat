@@ -6,8 +6,8 @@ use gitat_core::runner::CommandRunner;
 
 pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
     let idx = match app.log_list_state.selected() {
-        Some(i) => i,
-        None => return,
+        Some(i) if i > 0 => i - 1,  // offset: index 0 is uncommitted item
+        _ => return,
     };
     let commit = match app.log_entries.get(idx) {
         Some(c) => c.clone(),
@@ -156,7 +156,7 @@ mod tests {
             refs: vec![],
             parent_hashes: vec!["parent1".to_string()],
         }];
-        app.log_list_state.select(Some(0));
+        app.log_list_state.select(Some(1)); // index 0 is uncommitted item, index 1 is first commit
 
         let runner = MockRunner::new()
             .with_response(

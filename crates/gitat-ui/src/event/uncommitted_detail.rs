@@ -176,4 +176,41 @@ mod tests {
         handle_key(&mut app, mock_key(KeyCode::Char('q')), &runner);
         assert!(app.should_quit);
     }
+
+    #[test]
+    fn test_enter_on_index_0_enters_uncommitted_detail() {
+        let mut app = App::new();
+        app.tab = Tab::Log;
+        app.log_list_state.select(Some(0));
+
+        let runner = MockRunner::new();
+        handle_key(&mut app, mock_key(KeyCode::Enter), &runner);
+        assert!(matches!(app.mode, Mode::UncommittedDetail));
+    }
+
+    #[test]
+    fn test_enter_on_index_1_enters_commit_detail() {
+        let mut app = App::new();
+        app.tab = Tab::Log;
+        app.log_entries = vec![gitat_core::log::CommitInfo {
+            hash: "abc123".to_string(),
+            short_hash: "abc".to_string(),
+            author: "Test".to_string(),
+            date: "2026-04-04".to_string(),
+            message: "test commit".to_string(),
+            refs: vec![],
+            parent_hashes: vec!["parent1".to_string()],
+        }];
+        app.log_list_state.select(Some(1));
+
+        let runner = MockRunner::new()
+            .with_response(
+                "diff-tree --no-commit-id -r --name-status abc123",
+                "M\tsrc/main.rs\n",
+            )
+            .with_response("diff parent1..abc123 -- src/main.rs", "");
+
+        handle_key(&mut app, mock_key(KeyCode::Enter), &runner);
+        assert!(matches!(app.mode, Mode::CommitDetail));
+    }
 }

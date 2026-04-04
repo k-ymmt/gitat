@@ -118,7 +118,11 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
         }
         KeyCode::Enter => {
             if app.tab == Tab::Log {
-                super::commit_detail::enter_commit_detail(app, runner);
+                match app.log_list_state.selected() {
+                    Some(0) => super::uncommitted_detail::enter_uncommitted_detail(app, runner),
+                    Some(_) => super::commit_detail::enter_commit_detail(app, runner),
+                    None => {}
+                }
             } else {
                 super::staging::load_diff_for_selected(app, runner);
             }
@@ -131,7 +135,7 @@ fn list_len(app: &App) -> usize {
     match app.tab {
         Tab::Status => app.status.len(),
         Tab::Branches => app.branches.len(),
-        Tab::Log => app.log_entries.len(),
+        Tab::Log => 1 + app.log_entries.len(), // +1 for uncommitted item
         Tab::Stash => 0,
     }
 }
