@@ -23,10 +23,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
 pub fn load_log_preview(app: &mut App, runner: &dyn CommandRunner) {
     if let Some(ref indices) = app.filtered_log_indices {
         // In filtered mode: resolve through filtered_log_indices
-        if let Some(sel) = app.log_list_state.selected() {
-            if let Some(&log_idx) = indices.get(sel) {
-                commit_detail::load_commit_preview_at(app, runner, log_idx);
-            }
+        if let Some(sel) = app.log_list_state.selected()
+            && let Some(&log_idx) = indices.get(sel)
+        {
+            commit_detail::load_commit_preview_at(app, runner, log_idx);
         }
     } else {
         match app.log_list_state.selected() {
@@ -114,10 +114,10 @@ fn handle_search(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
                     .as_ref()
                     .and_then(|indices| indices.get(sel).copied())
             });
-            if let Some(idx) = original_index {
-                if commit_detail::prepare_commit_detail(app, runner, idx) {
-                    app.push_mode(Mode::CommitDetail);
-                }
+            if let Some(idx) = original_index
+                && commit_detail::prepare_commit_detail(app, runner, idx)
+            {
+                app.push_mode(Mode::CommitDetail);
             }
         }
         KeyCode::Char('j') | KeyCode::Down => {
@@ -489,5 +489,74 @@ mod tests {
 
         handle_key(&mut app, mock_key(KeyCode::Char('k')), &runner);
         assert_eq!(app.log_list_state.selected(), Some(0)); // clamped at 0
+    }
+
+    #[test]
+    fn test_search_to_commit_detail_round_trip() {
+        // Full flow: Normal -> Search -> navigate -> Enter -> CommitDetail -> Esc -> Search -> Esc -> Normal
+        let mut app = App::new();
+        app.log_entries = vec![
+            gitat_core::log::CommitInfo {
+                hash: "aaa111".into(),
+                short_hash: "aaa".into(),
+                author: "Alice".into(),
+                date: "2026-01-01".into(),
+                message: "fix bug".into(),
+                refs: vec![],
+                parent_hashes: vec!["p1".into()],
+            },
+            gitat_core::log::CommitInfo {
+                hash: "bbb222".into(),
+                short_hash: "bbb".into(),
+                author: "Bob".into(),
+                date: "2026-01-02".into(),
+                message: "fix typo".into(),
+                refs: vec![],
+                parent_hashes: vec!["p2".into()],
+            },
+        ];
+        app.log_list_state.select(Some(1)); // some position in Normal mode
+
+        let runner_search = MockRunner::new();
+
+        // Step 1: Enter search mode
+        handle_key(&mut app, mock_key(KeyCode::Char('/')), &runner_search);
+        assert!(matches!(app.mode, Mode::Search { .. }));
+        assert_eq!(app.pre_search_cursor, Some(1));
+
+        // Step 2: Type "fix" — both match
+        handle_key(&mut app, mock_key(KeyCode::Char('f')), &runner_search);
+        handle_key(&mut app, mock_key(KeyCode::Char('i')), &runner_search);
+        handle_key(&mut app, mock_key(KeyCode::Char('x')), &runner_search);
+        assert_eq!(app.filtered_log_indices, Some(vec![0, 1]));
+        assert_eq!(app.log_list_state.selected(), Some(0));
+
+        // Step 3: j to move to second result
+        handle_key(&mut app, mock_key(KeyCode::Char('j')), &runner_search);
+        assert_eq!(app.log_list_state.selected(), Some(1));
+
+        // Step 4: Enter to open CommitDetail for second result (bbb222)
+        let runner_detail = MockRunner::new()
+            .with_response(
+                "diff-tree --no-commit-id -r --name-status p2 bbb222",
+                "M\tlib.rs\n",
+            )
+            .with_response("diff p2..bbb222 -- lib.rs", "");
+        handle_key(&mut app, mock_key(KeyCode::Enter), &runner_detail);
+        assert_eq!(app.mode, Mode::CommitDetail);
+        assert_eq!(app.commit_detail_commit.as_ref().unwrap().hash, "bbb222");
+
+        // Step 5: Esc from CommitDetail -> back to Search
+        let runner_back = MockRunner::new();
+        handle_key(&mut app, mock_key(KeyCode::Esc), &runner_back);
+        assert!(matches!(app.mode, Mode::Search { ref query } if query == "fix"));
+        assert_eq!(app.filtered_log_indices, Some(vec![0, 1]));
+
+        // Step 6: Esc from Search -> back to Normal
+        handle_key(&mut app, mock_key(KeyCode::Esc), &runner_back);
+        assert_eq!(app.mode, Mode::Normal);
+        assert_eq!(app.filtered_log_indices, None);
+        assert_eq!(app.log_list_state.selected(), Some(1)); // restored
+        assert!(app.mode_stack.is_empty());
     }
 }
