@@ -83,17 +83,7 @@ fn render_log_list_items(f: &mut Frame, app: &mut App, area: Rect) {
         let graph_rows = graph::build_graph(&app.log_entries);
 
         // Uncommitted changes item (always at index 0)
-        let staged_count = app.status.iter().filter(|e| e.is_staged()).count();
-        let unstaged_count = app
-            .status
-            .iter()
-            .filter(|e| !e.is_staged() && e.worktree_status != FileStatus::Untracked)
-            .count();
-        let untracked_count = app
-            .status
-            .iter()
-            .filter(|e| e.index_status == FileStatus::Untracked)
-            .count();
+        let (staged_count, unstaged_count, untracked_count) = app.change_counts();
         let total_changes = staged_count + unstaged_count + untracked_count;
 
         let mut uncommitted_spans: Vec<Span> = Vec::new();
@@ -250,17 +240,7 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
         .split(area);
 
     // Header
-    let staged_count = app.status.iter().filter(|e| e.is_staged()).count();
-    let unstaged_count = app
-        .status
-        .iter()
-        .filter(|e| !e.is_staged() && e.worktree_status != FileStatus::Untracked)
-        .count();
-    let untracked_count = app
-        .status
-        .iter()
-        .filter(|e| e.index_status == FileStatus::Untracked)
-        .count();
+    let (staged_count, unstaged_count, untracked_count) = app.change_counts();
     let total_changes = staged_count + unstaged_count + untracked_count;
 
     let header_text = if total_changes > 0 {
@@ -287,20 +267,13 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
     let mut items: Vec<ListItem> = Vec::new();
 
     // Staged section
-    let staged: Vec<_> = app
-        .status
-        .iter()
-        .filter(|e| {
-            e.index_status != FileStatus::Unmodified && e.index_status != FileStatus::Untracked
-        })
-        .collect();
-
+    let staged = app.staged_entries();
     if !staged.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
             "Staged",
             Theme::file_staged(),
         ))));
-        for entry in &staged {
+        for (_, entry) in &staged {
             let code = file_status_code(&entry.index_status);
             items.push(ListItem::new(Line::from(vec![
                 Span::styled(format!("{code} "), Theme::file_staged()),
@@ -310,21 +283,13 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
     }
 
     // Modified (unstaged) section — includes files that are also staged (e.g. MM)
-    let modified: Vec<_> = app
-        .status
-        .iter()
-        .filter(|e| {
-            e.worktree_status != FileStatus::Unmodified
-                && e.worktree_status != FileStatus::Untracked
-        })
-        .collect();
-
+    let modified = app.modified_entries();
     if !modified.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
             "Modified",
             Theme::file_unstaged(),
         ))));
-        for entry in &modified {
+        for (_, entry) in &modified {
             let code = file_status_code(&entry.worktree_status);
             items.push(ListItem::new(Line::from(vec![
                 Span::styled(format!("{code} "), Theme::file_unstaged()),
@@ -334,18 +299,13 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
     }
 
     // Untracked section
-    let untracked: Vec<_> = app
-        .status
-        .iter()
-        .filter(|e| e.index_status == FileStatus::Untracked)
-        .collect();
-
+    let untracked = app.untracked_entries();
     if !untracked.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
             "Untracked",
             Theme::file_untracked(),
         ))));
-        for entry in &untracked {
+        for (_, entry) in &untracked {
             items.push(ListItem::new(Line::from(vec![
                 Span::styled("? ", Theme::file_untracked()),
                 Span::raw(&entry.path),
@@ -482,17 +442,7 @@ fn render_uncommitted_detail(f: &mut Frame, app: &mut App, area: Rect) {
         .split(area);
 
     // Header
-    let staged_count = app.status.iter().filter(|e| e.is_staged()).count();
-    let unstaged_count = app
-        .status
-        .iter()
-        .filter(|e| !e.is_staged() && e.worktree_status != FileStatus::Untracked)
-        .count();
-    let untracked_count = app
-        .status
-        .iter()
-        .filter(|e| e.index_status == FileStatus::Untracked)
-        .count();
+    let (staged_count, unstaged_count, untracked_count) = app.change_counts();
     let total_changes = staged_count + unstaged_count + untracked_count;
 
     let header_text = if total_changes > 0 {
@@ -548,68 +498,48 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
     let mut items: Vec<ListItem> = Vec::new();
 
     // Staged section
-    let staged: Vec<_> = app
-        .status
-        .iter()
-        .filter(|e| {
-            e.index_status != FileStatus::Unmodified && e.index_status != FileStatus::Untracked
-        })
-        .collect();
-
+    let staged = app.staged_entries();
     if !staged.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
             "Staged",
             Theme::file_staged(),
         ))));
-        for entry in &staged {
+        for (_, entry) in &staged {
             let code = file_status_code(&entry.index_status);
             items.push(ListItem::new(Line::from(vec![
                 Span::styled(format!("{code} "), Theme::file_staged()),
-                Span::raw(&entry.path),
+                Span::raw(entry.path.clone()),
             ])));
         }
     }
 
     // Modified (unstaged) section — includes files that are also staged (e.g. MM)
-    let modified: Vec<_> = app
-        .status
-        .iter()
-        .filter(|e| {
-            e.worktree_status != FileStatus::Unmodified
-                && e.worktree_status != FileStatus::Untracked
-        })
-        .collect();
-
+    let modified = app.modified_entries();
     if !modified.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
             "Modified",
             Theme::file_unstaged(),
         ))));
-        for entry in &modified {
+        for (_, entry) in &modified {
             let code = file_status_code(&entry.worktree_status);
             items.push(ListItem::new(Line::from(vec![
                 Span::styled(format!("{code} "), Theme::file_unstaged()),
-                Span::raw(&entry.path),
+                Span::raw(entry.path.clone()),
             ])));
         }
     }
 
     // Untracked section
-    let untracked: Vec<_> = app
-        .status
-        .iter()
-        .filter(|e| e.index_status == FileStatus::Untracked)
-        .collect();
-
+    let untracked = app.untracked_entries();
     if !untracked.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
             "Untracked",
             Theme::file_untracked(),
         ))));
-        for entry in &untracked {
+        for (_, entry) in &untracked {
             items.push(ListItem::new(Line::from(vec![
                 Span::styled("? ", Theme::file_untracked()),
-                Span::raw(&entry.path),
+                Span::raw(entry.path.clone()),
             ])));
         }
     }

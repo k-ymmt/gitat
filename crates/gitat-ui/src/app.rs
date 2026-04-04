@@ -276,57 +276,70 @@ impl App {
         }
     }
 
-    pub fn rebuild_uncommitted_file_map(&mut self) {
-        let mut map: Vec<Option<(usize, bool)>> = Vec::new();
-
-        // Staged section (must match render_uncommitted_file_list order)
-        let staged: Vec<usize> = self
-            .status
+    pub fn staged_entries(&self) -> Vec<(usize, &StatusEntry)> {
+        self.status
             .iter()
             .enumerate()
-            .filter(|(_, e)| {
-                e.index_status != FileStatus::Unmodified && e.index_status != FileStatus::Untracked
-            })
-            .map(|(i, _)| i)
-            .collect();
+            .filter(|(_, e)| e.is_staged())
+            .collect()
+    }
 
-        if !staged.is_empty() {
-            map.push(None); // header
-            for idx in staged {
-                map.push(Some((idx, true)));
-            }
-        }
-
-        // Modified (unstaged) section — includes files that are also staged (e.g. MM)
-        let modified: Vec<usize> = self
-            .status
+    pub fn modified_entries(&self) -> Vec<(usize, &StatusEntry)> {
+        self.status
             .iter()
             .enumerate()
             .filter(|(_, e)| {
                 e.worktree_status != FileStatus::Unmodified
                     && e.worktree_status != FileStatus::Untracked
             })
-            .map(|(i, _)| i)
-            .collect();
+            .collect()
+    }
 
+    pub fn untracked_entries(&self) -> Vec<(usize, &StatusEntry)> {
+        self.status
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| e.index_status == FileStatus::Untracked)
+            .collect()
+    }
+
+    pub fn change_counts(&self) -> (usize, usize, usize) {
+        let staged = self.status.iter().filter(|e| e.is_staged()).count();
+        let unstaged = self
+            .status
+            .iter()
+            .filter(|e| !e.is_staged() && e.worktree_status != FileStatus::Untracked)
+            .count();
+        let untracked = self
+            .status
+            .iter()
+            .filter(|e| e.index_status == FileStatus::Untracked)
+            .count();
+        (staged, unstaged, untracked)
+    }
+
+    pub fn rebuild_uncommitted_file_map(&mut self) {
+        let mut map: Vec<Option<(usize, bool)>> = Vec::new();
+
+        let staged: Vec<usize> = self.staged_entries().iter().map(|(i, _)| *i).collect();
+        if !staged.is_empty() {
+            map.push(None);
+            for idx in staged {
+                map.push(Some((idx, true)));
+            }
+        }
+
+        let modified: Vec<usize> = self.modified_entries().iter().map(|(i, _)| *i).collect();
         if !modified.is_empty() {
-            map.push(None); // header
+            map.push(None);
             for idx in modified {
                 map.push(Some((idx, false)));
             }
         }
 
-        // Untracked section
-        let untracked: Vec<usize> = self
-            .status
-            .iter()
-            .enumerate()
-            .filter(|(_, e)| e.index_status == FileStatus::Untracked)
-            .map(|(i, _)| i)
-            .collect();
-
+        let untracked: Vec<usize> = self.untracked_entries().iter().map(|(i, _)| *i).collect();
         if !untracked.is_empty() {
-            map.push(None); // header
+            map.push(None);
             for idx in untracked {
                 map.push(Some((idx, false)));
             }
