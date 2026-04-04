@@ -20,20 +20,6 @@ pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
     };
 
     app.commit_detail_files = files;
-
-    // Load diff for first file
-    if let Some(file_entry) = app.commit_detail_files.first() {
-        let parent = commit.parent_hashes.first().map(|s| s.as_str());
-        if let Ok(diff) = gitat_core::commit_detail::get_commit_file_diff(
-            runner,
-            &commit.hash,
-            parent,
-            &file_entry.path,
-        ) {
-            app.commit_detail_diff = Some(diff);
-        }
-    }
-
     app.commit_detail_commit = Some(commit);
 }
 
@@ -194,8 +180,7 @@ mod tests {
             .with_response(
                 "diff-tree --no-commit-id -r --name-status abc123",
                 "M\tsrc/main.rs\n",
-            )
-            .with_response("diff parent1..abc123 -- src/main.rs", "");
+            );
 
         load_commit_preview(&mut app, &runner);
 

@@ -4,15 +4,9 @@ use crate::app::{App, Mode, Panel};
 use crate::widgets::side_by_side_diff::SideBySideDiffState;
 use gitat_core::runner::CommandRunner;
 
-pub(super) fn load_uncommitted_preview(app: &mut App, runner: &dyn CommandRunner) {
-    if let Some(entry) = app.status.first() {
-        let staged = entry.is_staged();
-        if let Ok(diff) = gitat_core::diff::get_diff_for_file(runner, &entry.path, staged) {
-            app.current_diff = Some(diff);
-        }
-    } else {
-        app.current_diff = None;
-    }
+pub(super) fn load_uncommitted_preview(_app: &mut App, _runner: &dyn CommandRunner) {
+    // Preview only shows file list from app.status (already loaded by refresh).
+    // No additional data loading needed.
 }
 
 pub(super) fn enter_uncommitted_detail(app: &mut App, runner: &dyn CommandRunner) {
@@ -136,43 +130,12 @@ pub(super) fn handle_uncommitted_detail(
 #[cfg(test)]
 mod tests {
     use super::super::handle_key;
-    use super::load_uncommitted_preview;
     use crate::app::{App, Mode, Panel, Tab};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use gitat_core::runner::MockRunner;
 
     fn mock_key(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)
-    }
-
-    #[test]
-    fn test_load_uncommitted_preview_populates_diff() {
-        let mut app = App::new();
-        app.tab = Tab::Log;
-        app.status = vec![gitat_core::status::StatusEntry {
-            path: "src/main.rs".to_string(),
-            index_status: gitat_core::status::FileStatus::Modified,
-            worktree_status: gitat_core::status::FileStatus::Unmodified,
-        }];
-
-        let runner = MockRunner::new()
-            .with_response("diff --cached -- src/main.rs", "");
-
-        load_uncommitted_preview(&mut app, &runner);
-
-        assert!(app.current_diff.is_some());
-    }
-
-    #[test]
-    fn test_load_uncommitted_preview_empty_status() {
-        let mut app = App::new();
-        app.tab = Tab::Log;
-        app.status = vec![];
-
-        let runner = MockRunner::new();
-        load_uncommitted_preview(&mut app, &runner);
-
-        assert!(app.current_diff.is_none());
     }
 
     #[test]

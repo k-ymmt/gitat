@@ -198,8 +198,7 @@ mod tests {
             .with_response(
                 "diff-tree --no-commit-id -r --name-status abc123",
                 "M\tsrc/main.rs\n",
-            )
-            .with_response("diff parent1..abc123 -- src/main.rs", "");
+            );
 
         handle_key(&mut app, mock_key(KeyCode::Char('j')), &runner);
         assert_eq!(app.log_list_state.selected(), Some(1));

@@ -6,7 +6,7 @@ use gitat_core::commit_detail::FileChangeStatus;
 use gitat_core::status::FileStatus;
 use crate::app::{App, Mode, Panel};
 use crate::theme::Theme;
-use crate::widgets::side_by_side_diff::{SideBySideDiff, SideBySideDiffState};
+use crate::widgets::side_by_side_diff::SideBySideDiff;
 
 pub fn render(f: &mut Frame, app: &mut App, area: Rect) {
     match app.mode {
@@ -117,17 +117,7 @@ fn render_commit_preview(f: &mut Frame, app: &mut App, area: Rect) {
         .block(Block::default().borders(Borders::BOTTOM).border_style(Theme::border()));
     f.render_widget(meta, chunks[0]);
 
-    // Two panels
-    let panels = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
-        .split(chunks[1]);
-
-    render_commit_preview_files(f, app, panels[0]);
-    render_commit_preview_diff(f, app, panels[1]);
-}
-
-fn render_commit_preview_files(f: &mut Frame, app: &App, area: Rect) {
+    // File list (full width)
     let items: Vec<ListItem> = app.commit_detail_files.iter().map(|entry| {
         let (code, style) = match entry.status {
             FileChangeStatus::Added => ("A", Theme::file_added()),
@@ -147,28 +137,7 @@ fn render_commit_preview_files(f: &mut Frame, app: &App, area: Rect) {
         .border_style(Theme::border());
 
     let list = List::new(items).block(block);
-    f.render_widget(list, area);
-}
-
-fn render_commit_preview_diff(f: &mut Frame, app: &mut App, area: Rect) {
-    if let Some(ref diff_files) = app.commit_detail_diff {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(Theme::border());
-        let widget = SideBySideDiff::new(diff_files).block(block);
-        let mut state = SideBySideDiffState::new();
-        f.render_stateful_widget(widget, area, &mut state);
-    } else {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(Theme::border());
-        let placeholder = Paragraph::new("No diff available")
-            .block(block)
-            .style(Theme::diff_context());
-        f.render_widget(placeholder, area);
-    }
+    f.render_widget(list, chunks[1]);
 }
 
 fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
@@ -201,17 +170,7 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
         .block(Block::default().borders(Borders::BOTTOM).border_style(Theme::border()));
     f.render_widget(header, chunks[0]);
 
-    // Two panels
-    let panels = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
-        .split(chunks[1]);
-
-    render_uncommitted_preview_files(f, app, panels[0]);
-    render_uncommitted_preview_diff(f, app, panels[1]);
-}
-
-fn render_uncommitted_preview_files(f: &mut Frame, app: &App, area: Rect) {
+    // File list (full width)
     let mut items: Vec<ListItem> = Vec::new();
 
     // Staged section
@@ -285,28 +244,7 @@ fn render_uncommitted_preview_files(f: &mut Frame, app: &App, area: Rect) {
         .border_style(Theme::border());
 
     let list = List::new(items).block(block);
-    f.render_widget(list, area);
-}
-
-fn render_uncommitted_preview_diff(f: &mut Frame, app: &mut App, area: Rect) {
-    if let Some(ref diff_files) = app.current_diff {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(Theme::border());
-        let widget = SideBySideDiff::new(diff_files).block(block);
-        let mut state = SideBySideDiffState::new();
-        f.render_stateful_widget(widget, area, &mut state);
-    } else {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(Theme::border());
-        let placeholder = Paragraph::new("No diff available")
-            .block(block)
-            .style(Theme::diff_context());
-        f.render_widget(placeholder, area);
-    }
+    f.render_widget(list, chunks[1]);
 }
 
 fn render_commit_detail(f: &mut Frame, app: &mut App, area: Rect) {
