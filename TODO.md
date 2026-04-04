@@ -5,16 +5,10 @@
 - [ ] コンフリクトエディタのインライン編集 (`e` キー) — `editing` フィールドは存在するがキーハンドラなし
 - [ ] Diff のコンテキスト折りたたみ — 変更のない領域を折りたたんで表示
 
-## 検索モードの改善
-
-- [x] 検索結果内での j/k ナビゲーション — 検索モード中にカーソルを上下移動してフィルタ結果を選択できるようにする
-- [x] 検索結果内でのプレビュー連動 — フィルタモードでカーソル移動時にプレビューパネルを更新する
-- [x] 検索結果から直接コミット詳細画面へ遷移 — Enter でフィルタ解除+カーソル移動だけでなく、直接 CommitDetail モードに入れるオプション
-
 ## UncommittedDetail ビューの改善
 
 - [ ] staged/unstaged カウント計算ロジックの重複を解消 — `render_log_list` と `render_uncommitted_detail` で同じフィルタリングが行われている。`App` にヘルパーメソッドを追加するか共通関数に抽出する
-- [ ] Help モード（`?`）からの復帰先を修正 — UncommittedDetail から Help を開いて閉じると `Mode::Normal` に戻ってしまう。前モードを保存して正しく復帰させる
+- [ ] Help モード（`?`）からの復帰先を修正 — UncommittedDetail から Help を開いて閉じると `Mode::Normal` に戻ってしまう。`mode_stack`（`push_mode`/`pop_mode`）を活用して正しく復帰させる
 - [ ] `load_diff_for_selected` のデッドコードパスを整理 — `normal.rs` の Enter ハンドラで非 Log タブ時に呼ばれるが、関数先頭で `Mode::UncommittedDetail` チェックにより即 return する
 
 ## コミット詳細画面の改善
@@ -29,7 +23,7 @@
 
 - [ ] プレビューデータのキャッシュ — カーソル移動のたびに git コマンドを実行しており、大きなリポジトリで遅延の可能性がある。コミットハッシュベースのキャッシュを検討
 - [ ] プレビューローダーのエラー時の状態クリア — `load_commit_preview` / `load_uncommitted_preview` で git コマンドが失敗した場合、古いプレビューデータが残り続ける。エラー時に `commit_detail_*` / `current_diff` をクリアすべき
-- [ ] `load_commit_preview` と `enter_commit_detail` の重複ロジックの共通化 — コミット取得→ファイルリスト取得のパターンが `commit_detail.rs` 内で重複している。共通ヘルパーに抽出可能だがエラーハンドリングの差異（プレビューは静かにリターン、フルスクリーンは status_message を表示）に注意
+- [ ] `load_commit_preview_at` と `prepare_commit_detail` の重複ロジックの共通化 — コミット取得→ファイルリスト取得のパターンが `commit_detail.rs` 内で重複している。共通ヘルパーに抽出可能だがエラーハンドリングの差異（プレビューは静かにリターン、フルスクリーンは status_message を表示）に注意
 
 ## Unified Diff ウィジェットの改善
 
