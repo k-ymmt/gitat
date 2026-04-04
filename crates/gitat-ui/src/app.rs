@@ -65,6 +65,7 @@ pub enum Panel {
 pub struct App {
     pub tab: Tab,
     pub mode: Mode,
+    pub mode_stack: Vec<Mode>,
     pub panel: Panel,
     pub should_quit: bool,
     pub uncommitted_list_state: ListState,
@@ -101,6 +102,7 @@ impl App {
         Self {
             tab: Tab::Log,
             mode: Mode::Normal,
+            mode_stack: Vec::new(),
             panel: Panel::Left,
             should_quit: false,
             uncommitted_list_state: ListState::default(),
@@ -125,6 +127,17 @@ impl App {
             uncommitted_file_map: Vec::new(),
             pre_search_cursor: None,
             filtered_log_indices: None,
+        }
+    }
+
+    pub fn push_mode(&mut self, mode: Mode) {
+        let current = std::mem::replace(&mut self.mode, mode);
+        self.mode_stack.push(current);
+    }
+
+    pub fn pop_mode(&mut self) {
+        if let Some(prev) = self.mode_stack.pop() {
+            self.mode = prev;
         }
     }
 
@@ -398,6 +411,37 @@ mod tests {
         // Empty query — clears filter
         app.update_search_filter("");
         assert_eq!(app.filtered_log_indices, None);
+    }
+
+    #[test]
+    fn test_push_mode_saves_current_to_stack() {
+        let mut app = App::new();
+        assert_eq!(app.mode, Mode::Normal);
+        app.push_mode(Mode::Search { query: "test".into() });
+        assert!(matches!(app.mode, Mode::Search { ref query } if query == "test"));
+        assert_eq!(app.mode_stack.len(), 1);
+        assert_eq!(app.mode_stack[0], Mode::Normal);
+    }
+
+    #[test]
+    fn test_pop_mode_restores_previous() {
+        let mut app = App::new();
+        app.push_mode(Mode::Search { query: "test".into() });
+        app.push_mode(Mode::CommitDetail);
+        assert_eq!(app.mode, Mode::CommitDetail);
+        app.pop_mode();
+        assert!(matches!(app.mode, Mode::Search { ref query } if query == "test"));
+        app.pop_mode();
+        assert_eq!(app.mode, Mode::Normal);
+        assert!(app.mode_stack.is_empty());
+    }
+
+    #[test]
+    fn test_pop_mode_noop_on_empty_stack() {
+        let mut app = App::new();
+        app.mode = Mode::CommitDetail;
+        app.pop_mode();
+        assert_eq!(app.mode, Mode::CommitDetail);
     }
 
     #[test]
