@@ -14,36 +14,32 @@ use crate::widgets::side_by_side_diff::SideBySideDiffState;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Tab {
-    Status,
-    Branches,
     Log,
+    Branches,
     Stash,
 }
 
 impl Tab {
     pub fn next(self) -> Self {
         match self {
-            Tab::Status => Tab::Branches,
-            Tab::Branches => Tab::Log,
-            Tab::Log => Tab::Stash,
-            Tab::Stash => Tab::Status,
+            Tab::Log => Tab::Branches,
+            Tab::Branches => Tab::Stash,
+            Tab::Stash => Tab::Log,
         }
     }
 
     pub fn prev(self) -> Self {
         match self {
-            Tab::Status => Tab::Stash,
-            Tab::Branches => Tab::Status,
-            Tab::Log => Tab::Branches,
-            Tab::Stash => Tab::Log,
+            Tab::Log => Tab::Stash,
+            Tab::Branches => Tab::Log,
+            Tab::Stash => Tab::Branches,
         }
     }
 
     pub fn title(self) -> &'static str {
         match self {
-            Tab::Status => "Status",
-            Tab::Branches => "Branches",
             Tab::Log => "Log",
+            Tab::Branches => "Branches",
             Tab::Stash => "Stash",
         }
     }
@@ -71,7 +67,6 @@ pub struct App {
     pub mode: Mode,
     pub panel: Panel,
     pub should_quit: bool,
-    pub status_list_state: ListState,
     pub uncommitted_list_state: ListState,
     pub log_list_state: ListState,
     pub branches_list_state: ListState,
@@ -96,11 +91,10 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         Self {
-            tab: Tab::Status,
+            tab: Tab::Log,
             mode: Mode::Normal,
             panel: Panel::Left,
             should_quit: false,
-            status_list_state: ListState::default(),
             uncommitted_list_state: ListState::default(),
             log_list_state: ListState::default(),
             branches_list_state: ListState::default(),
@@ -125,10 +119,9 @@ impl App {
 
     pub fn current_list_state_mut(&mut self) -> &mut ListState {
         match self.tab {
-            Tab::Status => &mut self.status_list_state,
             Tab::Branches => &mut self.branches_list_state,
             Tab::Log => &mut self.log_list_state,
-            Tab::Stash => &mut self.status_list_state, // fallback
+            Tab::Stash => &mut self.log_list_state, // fallback
         }
     }
 
@@ -171,19 +164,26 @@ mod tests {
 
     #[test]
     fn test_tab_cycling() {
-        assert_eq!(Tab::Status.next(), Tab::Branches);
-        assert_eq!(Tab::Stash.next(), Tab::Status);
-        assert_eq!(Tab::Status.prev(), Tab::Stash);
-        assert_eq!(Tab::Branches.prev(), Tab::Status);
+        assert_eq!(Tab::Log.next(), Tab::Branches);
+        assert_eq!(Tab::Stash.next(), Tab::Log);
+        assert_eq!(Tab::Log.prev(), Tab::Stash);
+        assert_eq!(Tab::Branches.prev(), Tab::Log);
     }
 
     #[test]
     fn test_app_initial_state() {
         let app = App::new();
-        assert_eq!(app.tab, Tab::Status);
+        assert_eq!(app.tab, Tab::Log);
         assert_eq!(app.mode, Mode::Normal);
         assert_eq!(app.panel, Panel::Left);
         assert!(!app.should_quit);
+    }
+
+    #[test]
+    fn test_uncommitted_detail_mode_exists() {
+        let mut app = App::new();
+        app.mode = Mode::UncommittedDetail;
+        assert_eq!(app.mode, Mode::UncommittedDetail);
     }
 
     #[test]
@@ -192,13 +192,6 @@ mod tests {
         app.set_status_message("hello");
         app.clear_expired_status_message();
         assert!(app.status_message.is_some());
-    }
-
-    #[test]
-    fn test_uncommitted_detail_mode_exists() {
-        let mut app = App::new();
-        app.mode = Mode::UncommittedDetail;
-        assert_eq!(app.mode, Mode::UncommittedDetail);
     }
 
     #[test]

@@ -23,7 +23,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
 fn handle_commit(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
     match key.code {
         KeyCode::Esc => {
-            app.mode = Mode::Normal;
+            if app.return_to_uncommitted_detail {
+                app.mode = Mode::UncommittedDetail;
+                app.return_to_uncommitted_detail = false;
+            } else {
+                app.mode = Mode::Normal;
+            }
         }
         KeyCode::Enter => {
             let message = match &app.mode {
@@ -36,12 +41,18 @@ fn handle_commit(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
             }
             match gitat_core::commit::commit(runner, &message) {
                 Ok(()) => {
-                    app.mode = Mode::Normal;
+                    if app.return_to_uncommitted_detail {
+                        app.mode = Mode::UncommittedDetail;
+                        app.return_to_uncommitted_detail = false;
+                    } else {
+                        app.mode = Mode::Normal;
+                    }
                     app.set_status_message("Committed successfully");
                     app.refresh(runner);
                 }
                 Err(e) => {
                     app.set_status_message(format!("Commit failed: {e}"));
+                    app.return_to_uncommitted_detail = false;
                     app.mode = Mode::Normal;
                 }
             }
@@ -148,7 +159,7 @@ mod tests {
     fn test_tab_switch() {
         let mut app = App::new();
         let runner = MockRunner::new();
-        assert_eq!(app.tab, Tab::Status);
+        assert_eq!(app.tab, Tab::Log);
         handle_key(&mut app, mock_key(KeyCode::Tab), &runner);
         assert_eq!(app.tab, Tab::Branches);
     }

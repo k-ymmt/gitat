@@ -58,12 +58,7 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
             }
         }
         KeyCode::Char('s') => {
-            if app.tab == Tab::Status {
-                match app.panel {
-                    Panel::Left => super::staging::stage_or_unstage(app, runner),
-                    Panel::Right => super::staging::stage_or_unstage_hunk(app, runner),
-                }
-            }
+            // Staging is handled in UncommittedDetail mode, not in Normal mode
         }
         KeyCode::Char('c') => {
             app.mode = Mode::Commit {
@@ -133,9 +128,8 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
 
 fn list_len(app: &App) -> usize {
     match app.tab {
-        Tab::Status => app.status.len(),
         Tab::Branches => app.branches.len(),
-        Tab::Log => 1 + app.log_entries.len(), // +1 for uncommitted item
+        Tab::Log => 1 + app.log_entries.len(),
         Tab::Stash => 0,
     }
 }

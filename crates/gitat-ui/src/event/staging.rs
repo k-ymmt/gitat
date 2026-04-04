@@ -1,12 +1,9 @@
-use crate::app::{App, Mode, Tab};
+use crate::app::{App, Mode};
 use crate::widgets::side_by_side_diff::SideBySideDiffState;
 use gitat_core::runner::CommandRunner;
 
 fn selected_status_index(app: &App) -> Option<usize> {
-    match app.mode {
-        Mode::UncommittedDetail => app.uncommitted_list_state.selected(),
-        _ => app.status_list_state.selected(),
-    }
+    app.uncommitted_list_state.selected()
 }
 
 pub(super) fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
@@ -99,7 +96,7 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
 }
 
 pub(super) fn load_diff_for_selected(app: &mut App, runner: &dyn CommandRunner) {
-    if app.tab != Tab::Status && !matches!(app.mode, Mode::UncommittedDetail) {
+    if !matches!(app.mode, Mode::UncommittedDetail) {
         return;
     }
     let idx = match selected_status_index(app) {
@@ -126,7 +123,7 @@ pub(super) fn load_diff_for_selected(app: &mut App, runner: &dyn CommandRunner) 
 #[cfg(test)]
 mod tests {
     use super::super::handle_key;
-    use crate::app::{App, Mode, Panel, Tab};
+    use crate::app::{App, Mode, Panel};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use gitat_core::runner::MockRunner;
 
@@ -137,7 +134,7 @@ mod tests {
     #[test]
     fn test_s_in_right_panel_calls_stage_hunk() {
         let mut app = App::new();
-        app.tab = Tab::Status;
+        app.mode = Mode::UncommittedDetail;
         app.panel = Panel::Right;
 
         // Set up a status entry (unstaged modified file)
@@ -146,7 +143,7 @@ mod tests {
             index_status: gitat_core::status::FileStatus::Unmodified,
             worktree_status: gitat_core::status::FileStatus::Modified,
         }];
-        app.status_list_state.select(Some(0));
+        app.uncommitted_list_state.select(Some(0));
 
         // Set up current diff with one hunk
         app.current_diff = Some(vec![gitat_core::diff::DiffFile {
@@ -200,14 +197,14 @@ mod tests {
     #[test]
     fn test_s_in_left_panel_still_stages_file() {
         let mut app = App::new();
-        app.tab = Tab::Status;
+        app.mode = Mode::UncommittedDetail;
         app.panel = Panel::Left;
         app.status = vec![gitat_core::status::StatusEntry {
             path: "src/main.rs".to_string(),
             index_status: gitat_core::status::FileStatus::Unmodified,
             worktree_status: gitat_core::status::FileStatus::Modified,
         }];
-        app.status_list_state.select(Some(0));
+        app.uncommitted_list_state.select(Some(0));
 
         let runner = MockRunner::new()
             .with_response("add -- src/main.rs", "")
@@ -223,7 +220,6 @@ mod tests {
     #[test]
     fn test_s_in_uncommitted_detail_stages_file() {
         let mut app = App::new();
-        app.tab = Tab::Log;
         app.mode = Mode::UncommittedDetail;
         app.panel = Panel::Left;
         app.status = vec![gitat_core::status::StatusEntry {

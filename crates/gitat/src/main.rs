@@ -53,7 +53,7 @@ fn run_app(
                 .split(f.area());
 
             // Tab bar
-            let tab_titles: Vec<Line> = [Tab::Status, Tab::Branches, Tab::Log, Tab::Stash]
+            let tab_titles: Vec<Line> = [Tab::Log, Tab::Branches, Tab::Stash]
                 .iter()
                 .map(|t| {
                     let style = if *t == app.tab {
@@ -67,10 +67,9 @@ fn run_app(
 
             let tabs = Tabs::new(tab_titles)
                 .select(match app.tab {
-                    Tab::Status => 0,
+                    Tab::Log => 0,
                     Tab::Branches => 1,
-                    Tab::Log => 2,
-                    Tab::Stash => 3,
+                    Tab::Stash => 2,
                 })
                 .highlight_style(Theme::tab_active());
             f.render_widget(tabs, chunks[0]);
