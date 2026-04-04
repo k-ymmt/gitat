@@ -9,3 +9,6 @@ gitat-ui = { workspace = true }
 anyhow = { workspace = true }
 crossterm = { workspace = true }
 ratatui = { workspace = true }
+tokio = { workspace = true }
+notify = { workspace = true }
+notify-debouncer-full = { workspace = true }
