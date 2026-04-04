@@ -1,0 +1,46 @@
+---
+source: crates/gitat-core/src/graph.rs
+expression: graph
+---
+[
+    GraphRow {
+        cells: [
+            GraphCell {
+                symbol: '*',
+                color_index: 0,
+            },
+        ],
+    },
+    GraphRow {
+        cells: [
+            GraphCell {
+                symbol: '|',
+                color_index: 0,
+            },
+            GraphCell {
+                symbol: '*',
+                color_index: 1,
+            },
+        ],
+    },
+    GraphRow {
+        cells: [
+            GraphCell {
+                symbol: '*',
+                color_index: 0,
+            },
+            GraphCell {
+                symbol: '|',
+                color_index: 1,
+            },
+        ],
+    },
+    GraphRow {
+        cells: [
+            GraphCell {
+                symbol: '*',
+                color_index: 0,
+            },
+        ],
+    },
+]

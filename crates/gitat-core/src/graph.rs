@@ -161,4 +161,90 @@ mod tests {
         let graph = build_graph(&commits);
         insta::assert_debug_snapshot!(graph);
     }
+
+    #[test]
+    fn test_simple_merge() {
+        let commits = vec![
+            commit("M", &["P1", "P2"]),
+            commit("P2", &["C"]),
+            commit("P1", &["C"]),
+            commit("C", &[]),
+        ];
+        let graph = build_graph(&commits);
+        assert_eq!(graph.len(), 4);
+
+        // M: * at lane 0
+        assert_eq!(graph[0].cells[0].symbol, '*');
+
+        // P2: | at lane 0, * at lane 1
+        assert_eq!(graph[1].cells[0].symbol, '|');
+        assert_eq!(graph[1].cells[1].symbol, '*');
+
+        // P1: * at lane 0
+        assert_eq!(graph[2].cells[0].symbol, '*');
+
+        // C: * at lane 0 (lane 1 removed by convergence)
+        assert_eq!(graph[3].cells[0].symbol, '*');
+        assert_eq!(graph[3].cells.len(), 1);
+    }
+
+    #[test]
+    fn test_merge_branch_colors() {
+        let commits = vec![
+            commit("M", &["P1", "P2"]),
+            commit("P2", &["C"]),
+            commit("P1", &["C"]),
+            commit("C", &[]),
+        ];
+        let graph = build_graph(&commits);
+
+        let main_color = graph[0].cells[0].color_index;
+        let branch_color = graph[1].cells[1].color_index;
+        assert_ne!(main_color, branch_color);
+
+        assert_eq!(graph[2].cells[0].color_index, main_color);
+    }
+
+    #[test]
+    fn test_parallel_branches() {
+        let commits = vec![
+            commit("M", &["P1", "P2", "P3"]),
+            commit("P3", &["C"]),
+            commit("P2", &["C"]),
+            commit("P1", &["C"]),
+            commit("C", &[]),
+        ];
+        let graph = build_graph(&commits);
+        assert_eq!(graph.len(), 5);
+
+        assert_eq!(graph[0].cells[0].symbol, '*');
+
+        let max_width = graph.iter().map(|r| r.cells.len()).max().unwrap();
+        assert!(max_width >= 3);
+    }
+
+    #[test]
+    fn snapshot_simple_merge() {
+        let commits = vec![
+            commit("M", &["P1", "P2"]),
+            commit("P2", &["C"]),
+            commit("P1", &["C"]),
+            commit("C", &[]),
+        ];
+        let graph = build_graph(&commits);
+        insta::assert_debug_snapshot!(graph);
+    }
+
+    #[test]
+    fn snapshot_parallel_branches() {
+        let commits = vec![
+            commit("M", &["P1", "P2", "P3"]),
+            commit("P3", &["C"]),
+            commit("P2", &["C"]),
+            commit("P1", &["C"]),
+            commit("C", &[]),
+        ];
+        let graph = build_graph(&commits);
+        insta::assert_debug_snapshot!(graph);
+    }
 }
