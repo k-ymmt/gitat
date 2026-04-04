@@ -171,16 +171,142 @@ fn render_commit_preview_diff(f: &mut Frame, app: &mut App, area: Rect) {
     }
 }
 
-fn render_uncommitted_preview(f: &mut Frame, _app: &mut App, area: Rect) {
-    // Placeholder — implemented in Task 5
+fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
+    // Split: header (1 line) + panels
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(area);
+
+    // Header
+    let staged_count = app.status.iter().filter(|e| e.is_staged()).count();
+    let unstaged_count = app.status.iter().filter(|e| {
+        !e.is_staged() && e.worktree_status != FileStatus::Untracked
+    }).count();
+    let untracked_count = app.status.iter().filter(|e| {
+        e.index_status == FileStatus::Untracked
+    }).count();
+    let total_changes = staged_count + unstaged_count + untracked_count;
+
+    let header_text = if total_changes > 0 {
+        format!(
+            "Uncommitted Changes — {} staged, {} unstaged",
+            staged_count,
+            unstaged_count + untracked_count
+        )
+    } else {
+        "Uncommitted Changes".to_string()
+    };
+    let header = Paragraph::new(Line::from(Span::styled(header_text, Theme::border_focused())))
+        .block(Block::default().borders(Borders::BOTTOM).border_style(Theme::border()));
+    f.render_widget(header, chunks[0]);
+
+    // Two panels
+    let panels = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+        .split(chunks[1]);
+
+    render_uncommitted_preview_files(f, app, panels[0]);
+    render_uncommitted_preview_diff(f, app, panels[1]);
+}
+
+fn render_uncommitted_preview_files(f: &mut Frame, app: &App, area: Rect) {
+    let mut items: Vec<ListItem> = Vec::new();
+
+    // Staged section
+    let staged: Vec<_> = app.status.iter().filter(|e| {
+        e.index_status != FileStatus::Unmodified && e.index_status != FileStatus::Untracked
+    }).collect();
+
+    if !staged.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "Staged",
+            Theme::file_staged(),
+        ))));
+        for entry in &staged {
+            let code = file_status_code(&entry.index_status);
+            items.push(ListItem::new(Line::from(vec![
+                Span::styled(format!("{code} "), Theme::file_staged()),
+                Span::raw(&entry.path),
+            ])));
+        }
+    }
+
+    // Modified (unstaged) section
+    let modified: Vec<_> = app.status.iter().filter(|e| {
+        e.index_status == FileStatus::Unmodified
+            && e.worktree_status != FileStatus::Unmodified
+            && e.worktree_status != FileStatus::Untracked
+    }).collect();
+
+    if !modified.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "Modified",
+            Theme::file_unstaged(),
+        ))));
+        for entry in &modified {
+            let code = file_status_code(&entry.worktree_status);
+            items.push(ListItem::new(Line::from(vec![
+                Span::styled(format!("{code} "), Theme::file_unstaged()),
+                Span::raw(&entry.path),
+            ])));
+        }
+    }
+
+    // Untracked section
+    let untracked: Vec<_> = app.status.iter().filter(|e| {
+        e.index_status == FileStatus::Untracked
+    }).collect();
+
+    if !untracked.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "Untracked",
+            Theme::file_untracked(),
+        ))));
+        for entry in &untracked {
+            items.push(ListItem::new(Line::from(vec![
+                Span::styled("? ", Theme::file_untracked()),
+                Span::raw(&entry.path),
+            ])));
+        }
+    }
+
+    if items.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No uncommitted changes",
+            Theme::file_untracked(),
+        ))));
+    }
+
     let block = Block::default()
-        .title(" Preview ")
+        .title(" Files ")
         .borders(Borders::ALL)
         .border_style(Theme::border());
-    let placeholder = Paragraph::new("Loading...")
-        .block(block)
-        .style(Theme::diff_context());
-    f.render_widget(placeholder, area);
+
+    let list = List::new(items).block(block);
+    f.render_widget(list, area);
+}
+
+fn render_uncommitted_preview_diff(f: &mut Frame, app: &mut App, area: Rect) {
+    if let Some(ref diff_files) = app.current_diff {
+        let block = Block::default()
+            .title(" Diff ")
+            .borders(Borders::ALL)
+            .border_style(Theme::border());
+        let widget = SideBySideDiff::new(diff_files).block(block);
+        let mut state = SideBySideDiffState::new();
+        f.render_stateful_widget(widget, area, &mut state);
+    } else {
+        let block = Block::default()
+            .title(" Diff ")
+            .borders(Borders::ALL)
+            .border_style(Theme::border());
+        let placeholder = Paragraph::new("No diff available")
+            .block(block)
+            .style(Theme::diff_context());
+        f.render_widget(placeholder, area);
+    }
 }
 
 fn render_commit_detail(f: &mut Frame, app: &mut App, area: Rect) {
