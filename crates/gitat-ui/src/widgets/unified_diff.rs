@@ -91,7 +91,7 @@ impl<'a> UnifiedDiff<'a> {
     }
 }
 
-/// Takes a `DiffHunk` and returns paired rows for side-by-side display.
+/// Takes a `DiffHunk` and returns paired rows for unified diff display.
 fn pair_lines(hunk: &DiffHunk) -> Vec<DiffRow> {
     let mut rows = Vec::new();
     let mut removed_buf: Vec<&DiffLine> = Vec::new();
