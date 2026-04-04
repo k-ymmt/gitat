@@ -25,6 +25,12 @@
 - [ ] プレビューローダーのエラー時の状態クリア — `load_commit_preview` / `load_uncommitted_preview` で git コマンドが失敗した場合、古いプレビューデータが残り続ける。エラー時に `commit_detail_*` / `current_diff` をクリアすべき
 - [ ] `load_commit_preview` と `enter_commit_detail` の重複ロジックの共通化 — コミット取得→ファイルリスト取得のパターンが `commit_detail.rs` 内で重複している。共通ヘルパーに抽出可能だがエラーハンドリングの差異（プレビューは静かにリターン、フルスクリーンは status_message を表示）に注意
 
+## Unified Diff ウィジェットの改善
+
+- [ ] `hunk_offsets` / `scroll_y` の u16 オーバーフロー対策 — 1カラム表示では DiffRow が最大2行に展開されるため、巨大な diff で u16::MAX (65535) を超える可能性がある
+- [ ] `ScreenRow` 構造体を `render` メソッド外に抽出 — 現在ローカル構造体として定義されているが、モジュールレベルに移すことで展開ロジックの個別テストが可能になる
+- [ ] `snapshot_render_narrow_terminal` テストの改善 — 1カラムレイアウトではコンテンツ幅が広くなり、現在のテストデータ (width=30) では切り詰めが発生しない。より長いコンテンツか狭い幅 (例: width=16) にする
+
 ## テスト
 
 - [ ] 統合テスト: ステージング後の diff 読み込み、タブ切り替え時の状態保持
