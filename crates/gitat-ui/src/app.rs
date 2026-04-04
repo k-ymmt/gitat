@@ -57,6 +57,7 @@ pub enum Mode {
     Search { query: String },
     Help,
     CommitDetail,
+    UncommittedDetail,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -71,6 +72,7 @@ pub struct App {
     pub panel: Panel,
     pub should_quit: bool,
     pub status_list_state: ListState,
+    pub uncommitted_list_state: ListState,
     pub log_list_state: ListState,
     pub branches_list_state: ListState,
     pub diff_state: SideBySideDiffState,
@@ -88,6 +90,7 @@ pub struct App {
     pub commit_detail_panel: Panel,
     pub commit_detail_diff: Option<Vec<DiffFile>>,
     pub commit_detail_diff_state: SideBySideDiffState,
+    pub return_to_uncommitted_detail: bool,
 }
 
 impl App {
@@ -98,6 +101,7 @@ impl App {
             panel: Panel::Left,
             should_quit: false,
             status_list_state: ListState::default(),
+            uncommitted_list_state: ListState::default(),
             log_list_state: ListState::default(),
             branches_list_state: ListState::default(),
             diff_state: SideBySideDiffState::new(),
@@ -115,6 +119,7 @@ impl App {
             commit_detail_panel: Panel::Left,
             commit_detail_diff: None,
             commit_detail_diff_state: SideBySideDiffState::new(),
+            return_to_uncommitted_detail: false,
         }
     }
 
@@ -187,6 +192,13 @@ mod tests {
         app.set_status_message("hello");
         app.clear_expired_status_message();
         assert!(app.status_message.is_some());
+    }
+
+    #[test]
+    fn test_uncommitted_detail_mode_exists() {
+        let mut app = App::new();
+        app.mode = Mode::UncommittedDetail;
+        assert_eq!(app.mode, Mode::UncommittedDetail);
     }
 
     #[test]

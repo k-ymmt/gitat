@@ -15,6 +15,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
         Mode::Search { .. } => handle_search(app, key),
         Mode::Conflict { .. } => handle_conflict(app, key, runner),
         Mode::CommitDetail => commit_detail::handle_commit_detail(app, key, runner),
+        Mode::UncommittedDetail => {} // TODO: will be implemented in a later task
     }
 }
 
