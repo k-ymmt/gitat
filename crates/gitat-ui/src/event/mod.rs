@@ -21,10 +21,17 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
 }
 
 pub fn load_log_preview(app: &mut App, runner: &dyn CommandRunner) {
-    match app.log_list_state.selected() {
-        Some(0) => uncommitted_detail::load_uncommitted_preview(app, runner),
-        Some(_) => commit_detail::load_commit_preview(app, runner),
-        None => {}
+    if app.filtered_log_indices.is_some() {
+        // In filtered mode, all items are commits (no uncommitted row)
+        if app.log_list_state.selected().is_some() {
+            commit_detail::load_commit_preview(app, runner);
+        }
+    } else {
+        match app.log_list_state.selected() {
+            Some(0) => uncommitted_detail::load_uncommitted_preview(app, runner),
+            Some(_) => commit_detail::load_commit_preview(app, runner),
+            None => {}
+        }
     }
 }
 
