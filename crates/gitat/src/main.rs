@@ -1,10 +1,14 @@
+use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
 use crossterm::event::{self, Event};
+use notify::RecursiveMode;
+use notify_debouncer_full::{new_debouncer, DebounceEventResult};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Tabs};
+use tokio::sync::mpsc;
 
 use gitat_core::runner::ProcessRunner;
 use gitat_ui::app::{App, Mode, Tab};
@@ -14,7 +18,8 @@ use gitat_ui::util::centered_rect;
 use gitat_ui::views;
 use gitat_ui::views::commit::render_commit_popup;
 
-fn main() -> Result<()> {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<()> {
     // Setup panic hook to restore terminal
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
@@ -23,7 +28,7 @@ fn main() -> Result<()> {
     }));
 
     let repo_path = std::env::current_dir().context("failed to get current directory")?;
-    let runner = ProcessRunner::new(repo_path);
+    let runner = ProcessRunner::new(repo_path.clone());
 
     let mut terminal = ratatui::init();
     let mut app = App::new();
@@ -31,17 +36,33 @@ fn main() -> Result<()> {
     app.log_list_state.select(Some(0));
     gitat_ui::event::load_log_preview(&mut app, &runner);
 
-    let result = run_app(&mut terminal, &mut app, &runner);
+    let result = run_app(&mut terminal, &mut app, &runner, &repo_path).await;
 
     ratatui::restore();
     result
 }
 
-fn run_app(
+async fn run_app(
     terminal: &mut ratatui::DefaultTerminal,
     app: &mut App,
     runner: &ProcessRunner,
+    repo_path: &Path,
 ) -> Result<()> {
+    // Spawn blocking task for crossterm key input
+    let (key_tx, mut key_rx) = mpsc::unbounded_channel();
+    tokio::task::spawn_blocking(move || loop {
+        if event::poll(Duration::from_millis(100)).unwrap() {
+            if let Ok(ev) = event::read() {
+                if key_tx.send(ev).is_err() {
+                    break;
+                }
+            }
+        }
+    });
+
+    // Setup filesystem watcher
+    let (mut fs_rx, _debouncer) = setup_watcher(repo_path)?;
+
     loop {
         app.clear_expired_status_message();
         terminal.draw(|f| {
@@ -112,16 +133,41 @@ fn run_app(
             break;
         }
 
-        if event::poll(Duration::from_millis(100))? {
-            match event::read()? {
-                Event::Key(key) => handle_key(app, key, runner),
-                Event::Resize(_, _) => {} // triggers redraw on next loop iteration
-                _ => {}
+        tokio::select! {
+            Some(ev) = key_rx.recv() => {
+                match ev {
+                    Event::Key(key) => handle_key(app, key, runner),
+                    Event::Resize(_, _) => {}
+                    _ => {}
+                }
+            }
+            Some(()) = fs_rx.recv() => {
+                app.refresh_status_and_log(runner);
             }
         }
     }
 
     Ok(())
+}
+
+fn setup_watcher(
+    repo_path: &Path,
+) -> Result<(mpsc::Receiver<()>, notify_debouncer_full::Debouncer<notify::RecommendedWatcher, notify_debouncer_full::RecommendedCache>)> {
+    let (tx, rx) = mpsc::channel::<()>(1);
+
+    let mut debouncer = new_debouncer(
+        Duration::from_millis(500),
+        None,
+        move |result: DebounceEventResult| {
+            if result.is_ok() {
+                let _ = tx.try_send(());
+            }
+        },
+    )?;
+
+    debouncer.watch(repo_path, RecursiveMode::Recursive)?;
+
+    Ok((rx, debouncer))
 }
 
 fn render_help_popup(f: &mut ratatui::Frame) {
@@ -153,4 +199,3 @@ fn render_help_popup(f: &mut ratatui::Frame) {
     let paragraph = Paragraph::new(help_text.join("\n")).block(block);
     f.render_widget(paragraph, area);
 }
-
