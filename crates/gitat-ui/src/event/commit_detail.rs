@@ -102,10 +102,8 @@ pub(super) fn handle_commit_detail(app: &mut App, key: KeyEvent, runner: &dyn Co
     match key.code {
         KeyCode::Esc => {
             app.mode = Mode::Normal;
-            app.commit_detail_commit = None;
-            app.commit_detail_files.clear();
+            // Reset interactive state only; keep data for preview
             app.commit_detail_file_state = ratatui::widgets::ListState::default();
-            app.commit_detail_diff = None;
             app.commit_detail_diff_state = SideBySideDiffState::new();
         }
         KeyCode::Char('q') => {
@@ -250,7 +248,33 @@ mod tests {
         let runner = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
         assert_eq!(app.mode, Mode::Normal);
-        assert!(app.commit_detail_commit.is_none());
+    }
+
+    #[test]
+    fn test_esc_from_commit_detail_preserves_preview_data() {
+        let mut app = App::new();
+        app.mode = Mode::CommitDetail;
+        app.commit_detail_commit = Some(gitat_core::log::CommitInfo {
+            hash: "abc123".to_string(),
+            short_hash: "abc".to_string(),
+            author: "Test".to_string(),
+            date: "2026-04-04".to_string(),
+            message: "test".to_string(),
+            refs: vec![],
+            parent_hashes: vec![],
+        });
+        app.commit_detail_files = vec![gitat_core::commit_detail::CommitFileEntry {
+            path: "src/main.rs".to_string(),
+            status: gitat_core::commit_detail::FileChangeStatus::Modified,
+        }];
+
+        let runner = MockRunner::new();
+        handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
+
+        assert_eq!(app.mode, Mode::Normal);
+        // Data should be preserved for preview
+        assert!(app.commit_detail_commit.is_some());
+        assert_eq!(app.commit_detail_files.len(), 1);
     }
 
     #[test]

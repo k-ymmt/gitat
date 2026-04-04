@@ -58,7 +58,7 @@ pub(super) fn handle_uncommitted_detail(
     match key.code {
         KeyCode::Esc => {
             app.mode = Mode::Normal;
-            app.current_diff = None;
+            // Reset interactive state only; keep diff data for preview
             app.diff_state = SideBySideDiffState::new();
         }
         KeyCode::Char('q') => {
@@ -183,6 +183,21 @@ mod tests {
         let runner = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
         assert_eq!(app.mode, Mode::Normal);
+    }
+
+    #[test]
+    fn test_esc_from_uncommitted_detail_preserves_diff() {
+        let mut app = App::new();
+        app.tab = Tab::Log;
+        app.mode = Mode::UncommittedDetail;
+        app.current_diff = Some(vec![]);
+
+        let runner = MockRunner::new();
+        handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
+
+        assert_eq!(app.mode, Mode::Normal);
+        // Diff data should be preserved for preview
+        assert!(app.current_diff.is_some());
     }
 
     #[test]
