@@ -3,7 +3,8 @@ use crate::widgets::unified_diff::UnifiedDiffState;
 use gitat_core::runner::CommandRunner;
 
 fn selected_status_index(app: &App) -> Option<usize> {
-    app.uncommitted_list_state.selected()
+    let visual_idx = app.uncommitted_list_state.selected()?;
+    app.uncommitted_file_map.get(visual_idx).copied().flatten()
 }
 
 pub(super) fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
@@ -27,6 +28,8 @@ pub(super) fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
     match result {
         Ok(()) => {
             app.refresh(runner);
+            app.rebuild_uncommitted_file_map();
+            app.clamp_uncommitted_selection();
         }
         Err(e) => {
             app.set_status_message(format!("Stage/unstage failed: {e}"));
@@ -67,6 +70,8 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
     match result {
         Ok(()) => {
             app.refresh(runner);
+            app.rebuild_uncommitted_file_map();
+            app.clamp_uncommitted_selection();
             // After staging, show remaining unstaged diff; after unstaging, show remaining staged diff
             match gitat_core::diff::get_diff_for_file(runner, &entry.path, !is_staged) {
                 Ok(diff) => {
@@ -143,7 +148,9 @@ mod tests {
             index_status: gitat_core::status::FileStatus::Unmodified,
             worktree_status: gitat_core::status::FileStatus::Modified,
         }];
-        app.uncommitted_list_state.select(Some(0));
+        app.rebuild_uncommitted_file_map();
+        // Visual index 0 = "Modified" header, 1 = the file
+        app.uncommitted_list_state.select(Some(1));
 
         // Set up current diff with one hunk
         app.current_diff = Some(vec![gitat_core::diff::DiffFile {
@@ -204,7 +211,8 @@ mod tests {
             index_status: gitat_core::status::FileStatus::Unmodified,
             worktree_status: gitat_core::status::FileStatus::Modified,
         }];
-        app.uncommitted_list_state.select(Some(0));
+        app.rebuild_uncommitted_file_map();
+        app.uncommitted_list_state.select(Some(1));
 
         let runner = MockRunner::new()
             .with_response("add -- src/main.rs", "")
@@ -227,7 +235,8 @@ mod tests {
             index_status: gitat_core::status::FileStatus::Unmodified,
             worktree_status: gitat_core::status::FileStatus::Modified,
         }];
-        app.uncommitted_list_state.select(Some(0));
+        app.rebuild_uncommitted_file_map();
+        app.uncommitted_list_state.select(Some(1));
 
         let runner = MockRunner::new()
             .with_response("add -- src/main.rs", "")

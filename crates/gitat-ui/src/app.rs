@@ -6,7 +6,7 @@ use gitat_core::conflict::ConflictFile;
 use gitat_core::diff::DiffFile;
 use gitat_core::log::CommitInfo;
 use gitat_core::runner::CommandRunner;
-use gitat_core::status::StatusEntry;
+use gitat_core::status::{FileStatus, StatusEntry};
 use ratatui::widgets::ListState;
 
 use crate::widgets::conflict_editor::ConflictEditorState;
@@ -86,6 +86,8 @@ pub struct App {
     pub commit_detail_diff: Option<Vec<DiffFile>>,
     pub commit_detail_diff_state: UnifiedDiffState,
     pub return_to_uncommitted_detail: bool,
+    /// Maps visual list index to status entry index. None for section headers.
+    pub uncommitted_file_map: Vec<Option<usize>>,
 }
 
 impl App {
@@ -114,6 +116,7 @@ impl App {
             commit_detail_diff: None,
             commit_detail_diff_state: UnifiedDiffState::new(),
             return_to_uncommitted_detail: false,
+            uncommitted_file_map: Vec::new(),
         }
     }
 
@@ -149,6 +152,106 @@ impl App {
     pub fn set_status_message(&mut self, msg: impl Into<String>) {
         self.status_message = Some(msg.into());
         self.status_message_set_at = Some(Instant::now());
+    }
+
+    pub fn rebuild_uncommitted_file_map(&mut self) {
+        let mut map: Vec<Option<usize>> = Vec::new();
+
+        // Staged section (must match render_uncommitted_file_list order)
+        let staged: Vec<usize> = self
+            .status
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| {
+                e.index_status != FileStatus::Unmodified
+                    && e.index_status != FileStatus::Untracked
+            })
+            .map(|(i, _)| i)
+            .collect();
+
+        if !staged.is_empty() {
+            map.push(None); // header
+            for idx in staged {
+                map.push(Some(idx));
+            }
+        }
+
+        // Modified (unstaged) section
+        let modified: Vec<usize> = self
+            .status
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| {
+                e.index_status == FileStatus::Unmodified
+                    && e.worktree_status != FileStatus::Unmodified
+                    && e.worktree_status != FileStatus::Untracked
+            })
+            .map(|(i, _)| i)
+            .collect();
+
+        if !modified.is_empty() {
+            map.push(None); // header
+            for idx in modified {
+                map.push(Some(idx));
+            }
+        }
+
+        // Untracked section
+        let untracked: Vec<usize> = self
+            .status
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| e.index_status == FileStatus::Untracked)
+            .map(|(i, _)| i)
+            .collect();
+
+        if !untracked.is_empty() {
+            map.push(None); // header
+            for idx in untracked {
+                map.push(Some(idx));
+            }
+        }
+
+        self.uncommitted_file_map = map;
+    }
+
+    pub fn clamp_uncommitted_selection(&mut self) {
+        if self.uncommitted_file_map.is_empty() {
+            self.uncommitted_list_state.select(None);
+            return;
+        }
+
+        let current = match self.uncommitted_list_state.selected() {
+            Some(i) => i,
+            None => {
+                if let Some(pos) = self.uncommitted_file_map.iter().position(|x| x.is_some()) {
+                    self.uncommitted_list_state.select(Some(pos));
+                }
+                return;
+            }
+        };
+
+        // If current is valid and points to a file, keep it
+        if current < self.uncommitted_file_map.len()
+            && self.uncommitted_file_map[current].is_some()
+        {
+            return;
+        }
+
+        // Find nearest valid file entry (forward first, then backward)
+        let forward = self
+            .uncommitted_file_map
+            .iter()
+            .enumerate()
+            .skip(current)
+            .find(|(_, x)| x.is_some())
+            .map(|(i, _)| i);
+        let backward = self.uncommitted_file_map
+            [..current.min(self.uncommitted_file_map.len())]
+            .iter()
+            .rposition(|x| x.is_some());
+
+        self.uncommitted_list_state.select(forward.or(backward));
     }
 
     pub fn clear_expired_status_message(&mut self) {

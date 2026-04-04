@@ -14,20 +14,26 @@ pub(super) fn enter_uncommitted_detail(app: &mut App, runner: &dyn CommandRunner
     app.panel = Panel::Left;
     app.diff_state = UnifiedDiffState::new();
     app.current_diff = None;
+    app.rebuild_uncommitted_file_map();
 
-    if !app.status.is_empty() {
-        app.uncommitted_list_state.select(Some(0));
+    // Select the first file entry (skip section headers)
+    if let Some(first) = app.uncommitted_file_map.iter().position(|x| x.is_some()) {
+        app.uncommitted_list_state.select(Some(first));
         load_uncommitted_diff(app, runner);
     }
     app.mode = Mode::UncommittedDetail;
 }
 
 fn load_uncommitted_diff(app: &mut App, runner: &dyn CommandRunner) {
-    let idx = match app.uncommitted_list_state.selected() {
+    let visual_idx = match app.uncommitted_list_state.selected() {
         Some(i) => i,
         None => return,
     };
-    let entry = match app.status.get(idx) {
+    let status_idx = match app.uncommitted_file_map.get(visual_idx) {
+        Some(Some(i)) => *i,
+        _ => return,
+    };
+    let entry = match app.status.get(status_idx) {
         Some(e) => e.clone(),
         None => return,
     };
@@ -66,14 +72,21 @@ pub(super) fn handle_uncommitted_detail(
         }
         KeyCode::Char('j') | KeyCode::Down => {
             if app.panel == Panel::Left {
-                let len = app.status.len();
+                let len = app.uncommitted_file_map.len();
                 if len > 0 {
-                    let i = match app.uncommitted_list_state.selected() {
-                        Some(i) => (i + 1).min(len - 1),
-                        None => 0,
-                    };
-                    app.uncommitted_list_state.select(Some(i));
-                    load_uncommitted_diff(app, runner);
+                    let current = app.uncommitted_list_state.selected().unwrap_or(0);
+                    // Find next file entry (skip section headers)
+                    let next = app
+                        .uncommitted_file_map
+                        .iter()
+                        .enumerate()
+                        .skip(current + 1)
+                        .find(|(_, x)| x.is_some())
+                        .map(|(i, _)| i);
+                    if let Some(next) = next {
+                        app.uncommitted_list_state.select(Some(next));
+                        load_uncommitted_diff(app, runner);
+                    }
                 }
             } else {
                 app.diff_state.scroll_down(1);
@@ -81,10 +94,17 @@ pub(super) fn handle_uncommitted_detail(
         }
         KeyCode::Char('k') | KeyCode::Up => {
             if app.panel == Panel::Left {
-                if let Some(i) = app.uncommitted_list_state.selected() {
-                    let next = if i == 0 { 0 } else { i - 1 };
-                    app.uncommitted_list_state.select(Some(next));
-                    load_uncommitted_diff(app, runner);
+                if let Some(current) = app.uncommitted_list_state.selected()
+                    && current > 0
+                {
+                    // Find previous file entry (skip section headers)
+                    let prev = app.uncommitted_file_map[..current]
+                        .iter()
+                        .rposition(|x| x.is_some());
+                    if let Some(prev) = prev {
+                        app.uncommitted_list_state.select(Some(prev));
+                        load_uncommitted_diff(app, runner);
+                    }
                 }
             } else {
                 app.diff_state.scroll_up(1);
