@@ -4,12 +4,12 @@ use crate::app::{App, Mode, Panel};
 use crate::widgets::unified_diff::UnifiedDiffState;
 use gitat_core::runner::CommandRunner;
 
-pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
-    let idx = match app.log_list_state.selected() {
-        Some(i) if i > 0 => i - 1,
-        _ => return,
-    };
-    let commit = match app.log_entries.get(idx) {
+pub(super) fn load_commit_preview_at(
+    app: &mut App,
+    runner: &dyn CommandRunner,
+    log_entry_index: usize,
+) {
+    let commit = match app.log_entries.get(log_entry_index) {
         Some(c) => c.clone(),
         None => return,
     };
@@ -25,12 +25,20 @@ pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
     app.commit_detail_commit = Some(commit);
 }
 
-pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
+pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
     let idx = match app.log_list_state.selected() {
-        Some(i) if i > 0 => i - 1, // offset: index 0 is uncommitted item
+        Some(i) if i > 0 => i - 1,
         _ => return,
     };
-    let commit = match app.log_entries.get(idx) {
+    load_commit_preview_at(app, runner, idx);
+}
+
+pub(super) fn enter_commit_detail_at(
+    app: &mut App,
+    runner: &dyn CommandRunner,
+    log_entry_index: usize,
+) {
+    let commit = match app.log_entries.get(log_entry_index) {
         Some(c) => c.clone(),
         None => return,
     };
@@ -55,6 +63,14 @@ pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
         load_commit_detail_diff(app, runner);
     }
     app.mode = Mode::CommitDetail;
+}
+
+pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
+    let idx = match app.log_list_state.selected() {
+        Some(i) if i > 0 => i - 1, // offset: index 0 is uncommitted item
+        _ => return,
+    };
+    enter_commit_detail_at(app, runner, idx);
 }
 
 fn load_commit_detail_diff(app: &mut App, runner: &dyn CommandRunner) {
@@ -160,6 +176,48 @@ mod tests {
     use crate::app::{App, Mode, Panel, Tab};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use gitat_core::runner::MockRunner;
+
+    #[test]
+    fn test_load_commit_preview_filtered_mode_index_zero() {
+        use super::super::load_log_preview;
+
+        let mut app = App::new();
+        app.log_entries = vec![
+            gitat_core::log::CommitInfo {
+                hash: "aaa111".to_string(),
+                short_hash: "aaa".to_string(),
+                author: "Alice".to_string(),
+                date: "2026-01-01".to_string(),
+                message: "first".to_string(),
+                refs: vec![],
+                parent_hashes: vec!["p1".to_string()],
+            },
+            gitat_core::log::CommitInfo {
+                hash: "bbb222".to_string(),
+                short_hash: "bbb".to_string(),
+                author: "Bob".to_string(),
+                date: "2026-01-02".to_string(),
+                message: "second".to_string(),
+                refs: vec![],
+                parent_hashes: vec!["p2".to_string()],
+            },
+        ];
+        // Simulate filtered mode: only the second commit matches
+        app.filtered_log_indices = Some(vec![1]);
+        app.log_list_state.select(Some(0)); // first item in filtered list
+
+        let runner = MockRunner::new().with_response(
+            "diff-tree --no-commit-id -r --name-status p2 bbb222",
+            "M\tlib.rs\n",
+        );
+
+        load_log_preview(&mut app, &runner);
+
+        // Should load the second commit (index 1 in log_entries)
+        assert!(app.commit_detail_commit.is_some());
+        assert_eq!(app.commit_detail_commit.as_ref().unwrap().hash, "bbb222");
+        assert_eq!(app.commit_detail_files.len(), 1);
+    }
 
     fn mock_key(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)

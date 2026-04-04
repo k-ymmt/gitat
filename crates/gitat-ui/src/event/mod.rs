@@ -21,10 +21,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
 }
 
 pub fn load_log_preview(app: &mut App, runner: &dyn CommandRunner) {
-    if app.filtered_log_indices.is_some() {
-        // In filtered mode, all items are commits (no uncommitted row)
-        if app.log_list_state.selected().is_some() {
-            commit_detail::load_commit_preview(app, runner);
+    if let Some(ref indices) = app.filtered_log_indices {
+        // In filtered mode: resolve through filtered_log_indices
+        if let Some(sel) = app.log_list_state.selected() {
+            if let Some(&log_idx) = indices.get(sel) {
+                commit_detail::load_commit_preview_at(app, runner, log_idx);
+            }
         }
     } else {
         match app.log_list_state.selected() {
