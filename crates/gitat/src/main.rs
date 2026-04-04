@@ -1,4 +1,6 @@
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -50,7 +52,12 @@ async fn run_app(
 ) -> Result<()> {
     // Spawn blocking task for crossterm key input
     let (key_tx, mut key_rx) = mpsc::unbounded_channel();
+    let quit_flag = Arc::new(AtomicBool::new(false));
+    let quit_flag_clone = quit_flag.clone();
     tokio::task::spawn_blocking(move || loop {
+        if quit_flag_clone.load(Ordering::Relaxed) {
+            break;
+        }
         if event::poll(Duration::from_millis(100)).unwrap_or(false)
             && let Ok(ev) = event::read()
             && key_tx.send(ev).is_err()
@@ -129,6 +136,7 @@ async fn run_app(
         })?;
 
         if app.should_quit {
+            quit_flag.store(true, Ordering::Relaxed);
             break;
         }
 
