@@ -13,7 +13,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
         Mode::Normal => normal::handle_normal(app, key, runner),
         Mode::Commit { .. } => handle_commit(app, key, runner),
         Mode::Help => handle_help(app, key),
-        Mode::Search { .. } => handle_search(app, key),
+        Mode::Search { .. } => handle_search(app, key, runner),
         Mode::Conflict { .. } => handle_conflict(app, key, runner),
         Mode::CommitDetail => commit_detail::handle_commit_detail(app, key, runner),
         Mode::UncommittedDetail => uncommitted_detail::handle_uncommitted_detail(app, key, runner),
@@ -97,7 +97,7 @@ fn handle_help(app: &mut App, key: KeyEvent) {
     }
 }
 
-fn handle_search(app: &mut App, key: KeyEvent) {
+fn handle_search(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
     match key.code {
         KeyCode::Esc => {
             if let Some(cursor) = app.pre_search_cursor {
@@ -121,6 +121,20 @@ fn handle_search(app: &mut App, key: KeyEvent) {
             if let Some(idx) = original_index {
                 app.log_list_state.select(Some(idx + 1));
             }
+        }
+        KeyCode::Char('j') | KeyCode::Down => {
+            let max = app.filtered_log_indices.as_ref().map_or(0, |v| v.len());
+            if max > 0 {
+                let current = app.log_list_state.selected().unwrap_or(0);
+                let next = (current + 1).min(max - 1);
+                app.log_list_state.select(Some(next));
+            }
+            load_log_preview(app, runner);
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            let current = app.log_list_state.selected().unwrap_or(0);
+            app.log_list_state.select(Some(current.saturating_sub(1)));
+            load_log_preview(app, runner);
         }
         KeyCode::Backspace => {
             if let Mode::Search { query } = &mut app.mode {
@@ -340,5 +354,116 @@ mod tests {
         assert_eq!(app.mode, Mode::Normal);
         assert_eq!(app.filtered_log_indices, None);
         assert_eq!(app.log_list_state.selected(), Some(5));
+    }
+
+    #[test]
+    fn test_search_j_moves_cursor_down() {
+        let mut app = App::new();
+        app.log_entries = vec![
+            gitat_core::log::CommitInfo {
+                hash: "aaa".into(),
+                short_hash: "aaa".into(),
+                author: "Alice".into(),
+                date: "2026-01-01".into(),
+                message: "fix bug".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+            gitat_core::log::CommitInfo {
+                hash: "bbb".into(),
+                short_hash: "bbb".into(),
+                author: "Bob".into(),
+                date: "2026-01-02".into(),
+                message: "fix typo".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+        ];
+        app.mode = Mode::Search { query: "fix".into() };
+        app.update_search_filter("fix");
+        // filtered_log_indices = Some([0, 1]), selection = 0
+        let runner = MockRunner::new();
+
+        handle_key(&mut app, mock_key(KeyCode::Char('j')), &runner);
+        assert_eq!(app.log_list_state.selected(), Some(1));
+        // Verify still in search mode
+        assert!(matches!(app.mode, Mode::Search { ref query } if query == "fix"));
+    }
+
+    #[test]
+    fn test_search_k_moves_cursor_up() {
+        let mut app = App::new();
+        app.log_entries = vec![
+            gitat_core::log::CommitInfo {
+                hash: "aaa".into(),
+                short_hash: "aaa".into(),
+                author: "Alice".into(),
+                date: "2026-01-01".into(),
+                message: "fix bug".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+            gitat_core::log::CommitInfo {
+                hash: "bbb".into(),
+                short_hash: "bbb".into(),
+                author: "Bob".into(),
+                date: "2026-01-02".into(),
+                message: "fix typo".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+        ];
+        app.mode = Mode::Search { query: "fix".into() };
+        app.update_search_filter("fix");
+        app.log_list_state.select(Some(1)); // start at second item
+        let runner = MockRunner::new();
+
+        handle_key(&mut app, mock_key(KeyCode::Char('k')), &runner);
+        assert_eq!(app.log_list_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_search_j_clamps_at_end() {
+        let mut app = App::new();
+        app.log_entries = vec![
+            gitat_core::log::CommitInfo {
+                hash: "aaa".into(),
+                short_hash: "aaa".into(),
+                author: "Alice".into(),
+                date: "2026-01-01".into(),
+                message: "fix".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+        ];
+        app.mode = Mode::Search { query: "fix".into() };
+        app.update_search_filter("fix");
+        // Only one result, selection at 0
+        let runner = MockRunner::new();
+
+        handle_key(&mut app, mock_key(KeyCode::Char('j')), &runner);
+        assert_eq!(app.log_list_state.selected(), Some(0)); // clamped
+    }
+
+    #[test]
+    fn test_search_k_clamps_at_start() {
+        let mut app = App::new();
+        app.log_entries = vec![
+            gitat_core::log::CommitInfo {
+                hash: "aaa".into(),
+                short_hash: "aaa".into(),
+                author: "Alice".into(),
+                date: "2026-01-01".into(),
+                message: "fix".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+        ];
+        app.mode = Mode::Search { query: "fix".into() };
+        app.update_search_filter("fix");
+        let runner = MockRunner::new();
+
+        handle_key(&mut app, mock_key(KeyCode::Char('k')), &runner);
+        assert_eq!(app.log_list_state.selected(), Some(0)); // clamped at 0
     }
 }
