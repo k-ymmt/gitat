@@ -4,8 +4,8 @@ use gitat_core::runner::CommandRunner;
 
 /// Returns (status_index, is_in_staged_section) for the currently selected file.
 fn selected_file_info(app: &App) -> Option<(usize, bool)> {
-    let visual_idx = app.uncommitted_list_state.selected()?;
-    app.uncommitted_file_map.get(visual_idx).copied().flatten()
+    let visual_idx = app.uncommitted.list_state.selected()?;
+    app.uncommitted.file_map.get(visual_idx).copied().flatten()
 }
 
 pub(super) fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
@@ -30,12 +30,12 @@ pub(super) fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
             app.rebuild_uncommitted_file_map();
             app.clamp_uncommitted_selection();
             // Reload diff for the new selection, or clear if nothing selected
-            app.current_diff = None;
-            app.diff_state = UnifiedDiffState::new();
+            app.uncommitted.diff = None;
+            app.uncommitted.diff_state = UnifiedDiffState::new();
             load_diff_for_selected(app, runner);
         }
         Err(e) => {
-            app.set_status_message(format!("Stage/unstage failed: {e}"));
+            app.status_bar.set(format!("Stage/unstage failed: {e}"));
         }
     }
 }
@@ -50,7 +50,7 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
         None => return,
     };
 
-    let diff_files = match &app.current_diff {
+    let diff_files = match &app.uncommitted.diff {
         Some(d) if !d.is_empty() => d,
         _ => return,
     };
@@ -63,7 +63,7 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
         None => return,
     };
 
-    let hunk_index = app.diff_state.current_hunk;
+    let hunk_index = app.uncommitted.diff_state.current_hunk;
 
     let result = if is_staged {
         gitat_core::stage::unstage_hunk(runner, &diff_file, hunk_index)
@@ -80,26 +80,26 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
             match gitat_core::diff::get_diff_for_file(runner, &entry.path, !is_staged) {
                 Ok(diff) => {
                     if diff.is_empty() || diff.iter().all(|f| f.hunks.is_empty()) {
-                        app.current_diff = None;
-                        app.diff_state = UnifiedDiffState::new();
+                        app.uncommitted.diff = None;
+                        app.uncommitted.diff_state = UnifiedDiffState::new();
                     } else {
                         // Clamp current_hunk
                         let total_hunks: usize = diff.iter().map(|f| f.hunks.len()).sum();
-                        if app.diff_state.current_hunk >= total_hunks {
-                            app.diff_state.current_hunk = total_hunks.saturating_sub(1);
+                        if app.uncommitted.diff_state.current_hunk >= total_hunks {
+                            app.uncommitted.diff_state.current_hunk = total_hunks.saturating_sub(1);
                         }
-                        app.current_diff = Some(diff);
+                        app.uncommitted.diff = Some(diff);
                     }
                 }
                 Err(e) => {
-                    app.set_status_message(format!("Failed to reload diff: {e}"));
-                    app.current_diff = None;
-                    app.diff_state = UnifiedDiffState::new();
+                    app.status_bar.set(format!("Failed to reload diff: {e}"));
+                    app.uncommitted.diff = None;
+                    app.uncommitted.diff_state = UnifiedDiffState::new();
                 }
             }
         }
         Err(e) => {
-            app.set_status_message(format!("Stage/unstage hunk failed: {e}"));
+            app.status_bar.set(format!("Stage/unstage hunk failed: {e}"));
         }
     }
 }
@@ -119,10 +119,10 @@ pub(super) fn load_diff_for_selected(app: &mut App, runner: &dyn CommandRunner) 
 
     match gitat_core::diff::get_diff_for_file(runner, &entry.path, staged) {
         Ok(diff) => {
-            app.current_diff = Some(diff);
+            app.uncommitted.diff = Some(diff);
         }
         Err(e) => {
-            app.set_status_message(format!("Failed to load diff: {e}"));
+            app.status_bar.set(format!("Failed to load diff: {e}"));
         }
     }
 }
@@ -142,7 +142,7 @@ mod tests {
     fn test_s_in_right_panel_calls_stage_hunk() {
         let mut app = App::new();
         app.mode = Mode::UncommittedDetail;
-        app.panel = Panel::Right;
+        app.uncommitted.panel = Panel::Right;
 
         // Set up a status entry (unstaged modified file)
         app.status = vec![gitat_core::status::StatusEntry {
@@ -152,10 +152,10 @@ mod tests {
         }];
         app.rebuild_uncommitted_file_map();
         // Visual index 0 = "Modified" header, 1 = the file
-        app.uncommitted_list_state.select(Some(1));
+        app.uncommitted.list_state.select(Some(1));
 
         // Set up current diff with one hunk
-        app.current_diff = Some(vec![gitat_core::diff::DiffFile {
+        app.uncommitted.diff = Some(vec![gitat_core::diff::DiffFile {
             old_path: "src/main.rs".to_string(),
             new_path: "src/main.rs".to_string(),
             hunks: vec![gitat_core::diff::DiffHunk {
@@ -185,7 +185,7 @@ mod tests {
                 ],
             }],
         }]);
-        app.diff_state.current_hunk = 0;
+        app.uncommitted.diff_state.current_hunk = 0;
 
         // LOG_FORMAT = "%H\x1f%h\x1f%P\x1f%D\x1f%an\x1f%ai\x1f%s\x1e"
         let log_key = "log --max-count=100 --format=%H\x1f%h\x1f%P\x1f%D\x1f%an\x1f%ai\x1f%s\x1e";
@@ -201,8 +201,8 @@ mod tests {
 
         // After staging the only hunk, diff should be reloaded (now empty)
         assert!(
-            app.status_message.is_none()
-                || !app.status_message.as_ref().unwrap().contains("failed")
+            app.status_bar.message.is_none()
+                || !app.status_bar.message.as_ref().unwrap().contains("failed")
         );
     }
 
@@ -210,14 +210,14 @@ mod tests {
     fn test_s_in_left_panel_still_stages_file() {
         let mut app = App::new();
         app.mode = Mode::UncommittedDetail;
-        app.panel = Panel::Left;
+        app.uncommitted.panel = Panel::Left;
         app.status = vec![gitat_core::status::StatusEntry {
             path: "src/main.rs".to_string(),
             index_status: gitat_core::status::FileStatus::Unmodified,
             worktree_status: gitat_core::status::FileStatus::Modified,
         }];
         app.rebuild_uncommitted_file_map();
-        app.uncommitted_list_state.select(Some(1));
+        app.uncommitted.list_state.select(Some(1));
 
         let runner = MockRunner::new()
             .with_response("add -- src/main.rs", "")
@@ -230,21 +230,21 @@ mod tests {
 
         handle_key(&mut app, mock_key(KeyCode::Char('s')), &runner);
         // Should not error — file-level stage_file was called
-        assert!(app.status_message.is_none());
+        assert!(app.status_bar.message.is_none());
     }
 
     #[test]
     fn test_s_in_uncommitted_detail_stages_file() {
         let mut app = App::new();
         app.mode = Mode::UncommittedDetail;
-        app.panel = Panel::Left;
+        app.uncommitted.panel = Panel::Left;
         app.status = vec![gitat_core::status::StatusEntry {
             path: "src/main.rs".to_string(),
             index_status: gitat_core::status::FileStatus::Unmodified,
             worktree_status: gitat_core::status::FileStatus::Modified,
         }];
         app.rebuild_uncommitted_file_map();
-        app.uncommitted_list_state.select(Some(1));
+        app.uncommitted.list_state.select(Some(1));
 
         let runner = MockRunner::new()
             .with_response("add -- src/main.rs", "")
@@ -256,6 +256,6 @@ mod tests {
             );
 
         handle_key(&mut app, mock_key(KeyCode::Char('s')), &runner);
-        assert!(app.status_message.is_none());
+        assert!(app.status_bar.message.is_none());
     }
 }

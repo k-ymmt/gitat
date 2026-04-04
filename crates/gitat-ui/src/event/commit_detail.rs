@@ -21,8 +21,8 @@ pub(super) fn load_commit_preview_at(
             Err(_) => return,
         };
 
-    app.commit_detail_files = files;
-    app.commit_detail_commit = Some(commit);
+    app.commit_detail.files = files;
+    app.commit_detail.commit = Some(commit);
 }
 
 pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
@@ -48,18 +48,18 @@ pub(super) fn prepare_commit_detail(
         match gitat_core::commit_detail::get_commit_files(runner, &commit.hash, first_parent) {
             Ok(f) => f,
             Err(e) => {
-                app.set_status_message(format!("Failed to load commit files: {e}"));
+                app.status_bar.set(format!("Failed to load commit files: {e}"));
                 return false;
             }
         };
 
-    app.commit_detail_commit = Some(commit);
-    app.commit_detail_files = files;
-    app.commit_detail_file_state = ratatui::widgets::ListState::default();
-    app.commit_detail_panel = Panel::Left;
-    app.commit_detail_diff_state = UnifiedDiffState::new();
-    if !app.commit_detail_files.is_empty() {
-        app.commit_detail_file_state.select(Some(0));
+    app.commit_detail.commit = Some(commit);
+    app.commit_detail.files = files;
+    app.commit_detail.file_state = ratatui::widgets::ListState::default();
+    app.commit_detail.panel = Panel::Left;
+    app.commit_detail.diff_state = UnifiedDiffState::new();
+    if !app.commit_detail.files.is_empty() {
+        app.commit_detail.file_state.select(Some(0));
         load_commit_detail_diff(app, runner);
     }
     true
@@ -84,15 +84,15 @@ pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
 }
 
 fn load_commit_detail_diff(app: &mut App, runner: &dyn CommandRunner) {
-    let commit = match &app.commit_detail_commit {
+    let commit = match &app.commit_detail.commit {
         Some(c) => c,
         None => return,
     };
-    let idx = match app.commit_detail_file_state.selected() {
+    let idx = match app.commit_detail.file_state.selected() {
         Some(i) => i,
         None => return,
     };
-    let file_entry = match app.commit_detail_files.get(idx) {
+    let file_entry = match app.commit_detail.files.get(idx) {
         Some(f) => f,
         None => return,
     };
@@ -105,11 +105,11 @@ fn load_commit_detail_diff(app: &mut App, runner: &dyn CommandRunner) {
         &file_entry.path,
     ) {
         Ok(diff) => {
-            app.commit_detail_diff = Some(diff);
-            app.commit_detail_diff_state = UnifiedDiffState::new();
+            app.commit_detail.diff = Some(diff);
+            app.commit_detail.diff_state = UnifiedDiffState::new();
         }
         Err(e) => {
-            app.set_status_message(format!("Failed to load diff: {e}"));
+            app.status_bar.set(format!("Failed to load diff: {e}"));
         }
     }
 }
@@ -123,61 +123,61 @@ pub(super) fn handle_commit_detail(app: &mut App, key: KeyEvent, runner: &dyn Co
                 app.mode = Mode::Normal;
             }
             // Reset interactive state; keep data for preview
-            app.commit_detail_file_state = ratatui::widgets::ListState::default();
-            app.commit_detail_diff_state = UnifiedDiffState::new();
+            app.commit_detail.file_state = ratatui::widgets::ListState::default();
+            app.commit_detail.diff_state = UnifiedDiffState::new();
         }
         KeyCode::Char('q') => {
             app.should_quit = true;
         }
         KeyCode::Char('h') => {
-            app.commit_detail_panel = Panel::Left;
+            app.commit_detail.panel = Panel::Left;
         }
         KeyCode::Char('l') => {
-            app.commit_detail_panel = Panel::Right;
+            app.commit_detail.panel = Panel::Right;
         }
         KeyCode::Char('j') | KeyCode::Down => {
-            if app.commit_detail_panel == Panel::Left {
-                let len = app.commit_detail_files.len();
+            if app.commit_detail.panel == Panel::Left {
+                let len = app.commit_detail.files.len();
                 if len > 0 {
-                    let i = match app.commit_detail_file_state.selected() {
+                    let i = match app.commit_detail.file_state.selected() {
                         Some(i) => (i + 1).min(len - 1),
                         None => 0,
                     };
-                    app.commit_detail_file_state.select(Some(i));
+                    app.commit_detail.file_state.select(Some(i));
                     load_commit_detail_diff(app, runner);
                 }
             } else {
-                app.commit_detail_diff_state.scroll_down(1);
+                app.commit_detail.diff_state.scroll_down(1);
             }
         }
         KeyCode::Char('k') | KeyCode::Up => {
-            if app.commit_detail_panel == Panel::Left {
-                if let Some(i) = app.commit_detail_file_state.selected() {
+            if app.commit_detail.panel == Panel::Left {
+                if let Some(i) = app.commit_detail.file_state.selected() {
                     let next = if i == 0 { 0 } else { i - 1 };
-                    app.commit_detail_file_state.select(Some(next));
+                    app.commit_detail.file_state.select(Some(next));
                     load_commit_detail_diff(app, runner);
                 }
             } else {
-                app.commit_detail_diff_state.scroll_up(1);
+                app.commit_detail.diff_state.scroll_up(1);
             }
         }
         KeyCode::Char('J') => {
-            app.commit_detail_diff_state.scroll_down(1);
+            app.commit_detail.diff_state.scroll_down(1);
         }
         KeyCode::Char('K') => {
-            app.commit_detail_diff_state.scroll_up(1);
+            app.commit_detail.diff_state.scroll_up(1);
         }
         KeyCode::Char('H') => {
-            app.commit_detail_diff_state.scroll_left(4);
+            app.commit_detail.diff_state.scroll_left(4);
         }
         KeyCode::Char('L') => {
-            app.commit_detail_diff_state.scroll_right(4);
+            app.commit_detail.diff_state.scroll_right(4);
         }
         KeyCode::Char('n') => {
-            app.commit_detail_diff_state.next_hunk();
+            app.commit_detail.diff_state.next_hunk();
         }
         KeyCode::Char('N') => {
-            app.commit_detail_diff_state.prev_hunk();
+            app.commit_detail.diff_state.prev_hunk();
         }
         _ => {}
     }
@@ -217,7 +217,7 @@ mod tests {
             },
         ];
         // Simulate filtered mode: only the second commit matches
-        app.filtered_log_indices = Some(vec![1]);
+        app.search.filtered_log_indices = Some(vec![1]);
         app.log_list_state.select(Some(0)); // first item in filtered list
 
         let runner = MockRunner::new().with_response(
@@ -228,9 +228,9 @@ mod tests {
         load_log_preview(&mut app, &runner);
 
         // Should load the second commit (index 1 in log_entries)
-        assert!(app.commit_detail_commit.is_some());
-        assert_eq!(app.commit_detail_commit.as_ref().unwrap().hash, "bbb222");
-        assert_eq!(app.commit_detail_files.len(), 1);
+        assert!(app.commit_detail.commit.is_some());
+        assert_eq!(app.commit_detail.commit.as_ref().unwrap().hash, "bbb222");
+        assert_eq!(app.commit_detail.files.len(), 1);
     }
 
     fn mock_key(code: KeyCode) -> KeyEvent {
@@ -259,9 +259,9 @@ mod tests {
 
         load_commit_preview(&mut app, &runner);
 
-        assert!(app.commit_detail_commit.is_some());
-        assert_eq!(app.commit_detail_files.len(), 1);
-        assert_eq!(app.commit_detail_files[0].path, "src/main.rs");
+        assert!(app.commit_detail.commit.is_some());
+        assert_eq!(app.commit_detail.files.len(), 1);
+        assert_eq!(app.commit_detail.files[0].path, "src/main.rs");
     }
 
     #[test]
@@ -288,8 +288,8 @@ mod tests {
 
         handle_key(&mut app, mock_key(KeyCode::Enter), &runner);
         assert!(matches!(app.mode, Mode::CommitDetail));
-        assert!(app.commit_detail_commit.is_some());
-        assert_eq!(app.commit_detail_files.len(), 1);
+        assert!(app.commit_detail.commit.is_some());
+        assert_eq!(app.commit_detail.files.len(), 1);
     }
 
     #[test]
@@ -298,15 +298,15 @@ mod tests {
         // Simulate: was in Search, pushed to CommitDetail
         app.mode = Mode::CommitDetail;
         app.mode_stack = vec![Mode::Search { query: "test".into() }];
-        app.filtered_log_indices = Some(vec![0, 2]);
-        app.pre_search_cursor = Some(5);
+        app.search.filtered_log_indices = Some(vec![0, 2]);
+        app.search.pre_search_cursor = Some(5);
 
         let runner = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
 
         assert!(matches!(app.mode, Mode::Search { ref query } if query == "test"));
-        assert_eq!(app.filtered_log_indices, Some(vec![0, 2]));
-        assert_eq!(app.pre_search_cursor, Some(5));
+        assert_eq!(app.search.filtered_log_indices, Some(vec![0, 2]));
+        assert_eq!(app.search.pre_search_cursor, Some(5));
     }
 
     #[test]
@@ -323,7 +323,7 @@ mod tests {
     fn test_esc_from_commit_detail_preserves_preview_data() {
         let mut app = App::new();
         app.mode = Mode::CommitDetail;
-        app.commit_detail_commit = Some(gitat_core::log::CommitInfo {
+        app.commit_detail.commit = Some(gitat_core::log::CommitInfo {
             hash: "abc123".to_string(),
             short_hash: "abc".to_string(),
             author: "Test".to_string(),
@@ -332,7 +332,7 @@ mod tests {
             refs: vec![],
             parent_hashes: vec![],
         });
-        app.commit_detail_files = vec![gitat_core::commit_detail::CommitFileEntry {
+        app.commit_detail.files = vec![gitat_core::commit_detail::CommitFileEntry {
             path: "src/main.rs".to_string(),
             status: gitat_core::commit_detail::FileChangeStatus::Modified,
         }];
@@ -342,19 +342,19 @@ mod tests {
 
         assert_eq!(app.mode, Mode::Normal);
         // Data should be preserved for preview
-        assert!(app.commit_detail_commit.is_some());
-        assert_eq!(app.commit_detail_files.len(), 1);
+        assert!(app.commit_detail.commit.is_some());
+        assert_eq!(app.commit_detail.files.len(), 1);
     }
 
     #[test]
     fn test_commit_detail_panel_switch() {
         let mut app = App::new();
         app.mode = Mode::CommitDetail;
-        app.commit_detail_panel = Panel::Left;
+        app.commit_detail.panel = Panel::Left;
         let runner = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Char('l')), &runner);
-        assert_eq!(app.commit_detail_panel, Panel::Right);
+        assert_eq!(app.commit_detail.panel, Panel::Right);
         handle_key(&mut app, mock_key(KeyCode::Char('h')), &runner);
-        assert_eq!(app.commit_detail_panel, Panel::Left);
+        assert_eq!(app.commit_detail.panel, Panel::Left);
     }
 }

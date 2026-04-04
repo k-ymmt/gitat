@@ -72,7 +72,7 @@ async fn run_app(
     let (mut fs_rx, _debouncer) = setup_watcher(repo_path)?;
 
     loop {
-        app.clear_expired_status_message();
+        app.status_bar.clear_if_expired();
         terminal.draw(|f| {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -109,7 +109,7 @@ async fn run_app(
             views::render_tab(f, app, chunks[1]);
 
             // Status bar
-            let status_text = if let Some(ref msg) = app.status_message {
+            let status_text = if let Some(ref msg) = app.status_bar.message {
                 msg.clone()
             } else {
                 "j/k: move  h/l: panel  Tab: switch  s: stage  c: commit  p: push  ?: help  q: quit"
@@ -120,7 +120,7 @@ async fn run_app(
 
             // Conflict editor overlay
             if matches!(app.mode, Mode::Conflict { .. })
-                && let (Some(file), Some(state)) = (&app.conflict_file, &mut app.conflict_state)
+                && let (Some(file), Some(state)) = (&app.conflict.file, &mut app.conflict.editor_state)
             {
                 let editor = gitat_ui::widgets::conflict_editor::ConflictEditor::new(file);
                 f.render_stateful_widget(editor, chunks[1], state);

@@ -15,29 +15,29 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
             app.tab = app.tab.prev();
         }
         // Diff navigation keys (uppercase, right panel only) — must be checked before lowercase h/l
-        KeyCode::Char('n') if app.panel == Panel::Right => {
-            app.diff_state.next_hunk();
+        KeyCode::Char('n') if app.uncommitted.panel == Panel::Right => {
+            app.uncommitted.diff_state.next_hunk();
         }
-        KeyCode::Char('N') if app.panel == Panel::Right => {
-            app.diff_state.prev_hunk();
+        KeyCode::Char('N') if app.uncommitted.panel == Panel::Right => {
+            app.uncommitted.diff_state.prev_hunk();
         }
-        KeyCode::Char('J') if app.panel == Panel::Right => {
-            app.diff_state.scroll_down(1);
+        KeyCode::Char('J') if app.uncommitted.panel == Panel::Right => {
+            app.uncommitted.diff_state.scroll_down(1);
         }
-        KeyCode::Char('K') if app.panel == Panel::Right => {
-            app.diff_state.scroll_up(1);
+        KeyCode::Char('K') if app.uncommitted.panel == Panel::Right => {
+            app.uncommitted.diff_state.scroll_up(1);
         }
-        KeyCode::Char('H') if app.panel == Panel::Right => {
-            app.diff_state.scroll_left(4);
+        KeyCode::Char('H') if app.uncommitted.panel == Panel::Right => {
+            app.uncommitted.diff_state.scroll_left(4);
         }
-        KeyCode::Char('L') if app.panel == Panel::Right => {
-            app.diff_state.scroll_right(4);
+        KeyCode::Char('L') if app.uncommitted.panel == Panel::Right => {
+            app.uncommitted.diff_state.scroll_right(4);
         }
         KeyCode::Char('l') => {
-            app.panel = Panel::Right;
+            app.uncommitted.panel = Panel::Right;
         }
         KeyCode::Char('h') => {
-            app.panel = Panel::Left;
+            app.uncommitted.panel = Panel::Left;
         }
         KeyCode::Char('j') | KeyCode::Down => {
             let len = list_len(app);
@@ -63,9 +63,6 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
                 super::load_log_preview(app, runner);
             }
         }
-        KeyCode::Char('s') => {
-            // Staging is handled in UncommittedDetail mode, not in Normal mode
-        }
         KeyCode::Char('c') => {
             app.mode = Mode::Commit {
                 message: String::new(),
@@ -74,27 +71,27 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
         KeyCode::Char('p') => match gitat_core::branch::current_branch(runner) {
             Ok(branch) => {
                 if let Err(e) = gitat_core::remote::push(runner, "origin", &branch) {
-                    app.set_status_message(format!("Push failed: {e}"));
+                    app.status_bar.set(format!("Push failed: {e}"));
                 } else {
-                    app.set_status_message(format!("Pushed to origin/{branch}"));
+                    app.status_bar.set(format!("Pushed to origin/{branch}"));
                 }
             }
-            Err(e) => app.set_status_message(format!("Push failed: {e}")),
+            Err(e) => app.status_bar.set(format!("Push failed: {e}")),
         },
         KeyCode::Char('P') => match gitat_core::branch::current_branch(runner) {
             Ok(branch) => {
                 if let Err(e) = gitat_core::remote::pull(runner, "origin", &branch) {
-                    app.set_status_message(format!("Pull failed: {e}"));
+                    app.status_bar.set(format!("Pull failed: {e}"));
                 } else {
-                    app.set_status_message(format!("Pulled from origin/{branch}"));
+                    app.status_bar.set(format!("Pulled from origin/{branch}"));
                     app.refresh(runner);
                 }
             }
-            Err(e) => app.set_status_message(format!("Pull failed: {e}")),
+            Err(e) => app.status_bar.set(format!("Pull failed: {e}")),
         },
         KeyCode::Char('b') => {
             // Placeholder: branch creation requires user input (not yet implemented)
-            app.set_status_message("Branch creation: not yet implemented");
+            app.status_bar.set("Branch creation: not yet implemented");
         }
         KeyCode::Char('d') => {
             if app.tab == Tab::Branches {
@@ -102,14 +99,14 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
             }
         }
         KeyCode::Char('/') => {
-            app.pre_search_cursor = app.log_list_state.selected();
+            app.search.pre_search_cursor = app.log_list_state.selected();
             app.mode = Mode::Search {
                 query: String::new(),
             };
         }
         KeyCode::Char('r') => {
             app.refresh(runner);
-            app.set_status_message("Refreshed");
+            app.status_bar.set("Refreshed");
         }
         KeyCode::Char('?') => {
             app.mode = Mode::Help;
@@ -147,16 +144,16 @@ fn delete_selected_branch(app: &mut App, runner: &dyn CommandRunner) {
         None => return,
     };
     if branch.is_current {
-        app.set_status_message("Cannot delete current branch");
+        app.status_bar.set("Cannot delete current branch");
         return;
     }
     match gitat_core::branch::delete_branch(runner, &branch.name) {
         Ok(()) => {
             app.refresh(runner);
-            app.set_status_message(format!("Deleted branch '{}'", branch.name));
+            app.status_bar.set(format!("Deleted branch '{}'", branch.name));
         }
         Err(e) => {
-            app.set_status_message(format!("Delete branch failed: {e}"));
+            app.status_bar.set(format!("Delete branch failed: {e}"));
         }
     }
 }
@@ -179,7 +176,7 @@ mod tests {
         let runner = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Char('/')), &runner);
         assert!(matches!(app.mode, Mode::Search { ref query } if query.is_empty()));
-        assert_eq!(app.pre_search_cursor, Some(3));
+        assert_eq!(app.search.pre_search_cursor, Some(3));
     }
 
     #[test]
@@ -208,7 +205,7 @@ mod tests {
 
         handle_key(&mut app, mock_key(KeyCode::Char('j')), &runner);
         assert_eq!(app.log_list_state.selected(), Some(1));
-        assert!(app.commit_detail_commit.is_some());
-        assert_eq!(app.commit_detail_files.len(), 1);
+        assert!(app.commit_detail.commit.is_some());
+        assert_eq!(app.commit_detail.files.len(), 1);
     }
 }

@@ -21,7 +21,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
 }
 
 pub fn load_log_preview(app: &mut App, runner: &dyn CommandRunner) {
-    if let Some(ref indices) = app.filtered_log_indices {
+    if let Some(ref indices) = app.search.filtered_log_indices {
         // In filtered mode: resolve through filtered_log_indices
         if let Some(sel) = app.log_list_state.selected()
             && let Some(&log_idx) = indices.get(sel)
@@ -53,7 +53,7 @@ fn handle_commit(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
                 _ => return,
             };
             if message.is_empty() {
-                app.set_status_message("Commit message cannot be empty");
+                app.status_bar.set("Commit message cannot be empty");
                 return;
             }
             match gitat_core::commit::commit(runner, &message) {
@@ -64,11 +64,11 @@ fn handle_commit(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
                     } else {
                         app.mode = Mode::Normal;
                     }
-                    app.set_status_message("Committed successfully");
+                    app.status_bar.set("Committed successfully");
                     app.refresh(runner);
                 }
                 Err(e) => {
-                    app.set_status_message(format!("Commit failed: {e}"));
+                    app.status_bar.set(format!("Commit failed: {e}"));
                     app.return_to_uncommitted_detail = false;
                     app.mode = Mode::Normal;
                 }
@@ -100,17 +100,17 @@ fn handle_help(app: &mut App, key: KeyEvent) {
 fn handle_search(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
     match key.code {
         KeyCode::Esc => {
-            if let Some(cursor) = app.pre_search_cursor {
+            if let Some(cursor) = app.search.pre_search_cursor {
                 app.log_list_state.select(Some(cursor));
             }
-            app.filtered_log_indices = None;
-            app.pre_search_cursor = None;
+            app.search.filtered_log_indices = None;
+            app.search.pre_search_cursor = None;
             app.mode = Mode::Normal;
             app.mode_stack.clear();
         }
         KeyCode::Enter => {
             let original_index = app.log_list_state.selected().and_then(|sel| {
-                app.filtered_log_indices
+                app.search.filtered_log_indices
                     .as_ref()
                     .and_then(|indices| indices.get(sel).copied())
             });
@@ -121,7 +121,7 @@ fn handle_search(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
             }
         }
         KeyCode::Char('j') | KeyCode::Down => {
-            let max = app.filtered_log_indices.as_ref().map_or(0, |v| v.len());
+            let max = app.search.filtered_log_indices.as_ref().map_or(0, |v| v.len());
             if max > 0 {
                 let current = app.log_list_state.selected().unwrap_or(0);
                 let next = (current + 1).min(max - 1);
@@ -153,7 +153,7 @@ fn handle_search(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
 }
 
 fn handle_conflict(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
-    let (state, file) = match (&mut app.conflict_state, &app.conflict_file) {
+    let (state, file) = match (&mut app.conflict.editor_state, &app.conflict.file) {
         (Some(state), Some(file)) => (state, file),
         _ => {
             app.mode = Mode::Normal;
@@ -170,18 +170,18 @@ fn handle_conflict(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
             let content = state.result_content();
             let path = file.path.clone();
             if let Err(e) = gitat_core::conflict::resolve_file(runner, &path, &content) {
-                app.set_status_message(format!("Resolve failed: {e}"));
+                app.status_bar.set(format!("Resolve failed: {e}"));
             } else {
-                app.set_status_message(format!("Resolved: {path}"));
+                app.status_bar.set(format!("Resolved: {path}"));
                 app.refresh(runner);
             }
-            app.conflict_state = None;
-            app.conflict_file = None;
+            app.conflict.editor_state = None;
+            app.conflict.file = None;
             app.mode = Mode::Normal;
         }
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.conflict_state = None;
-            app.conflict_file = None;
+            app.conflict.editor_state = None;
+            app.conflict.file = None;
             app.mode = Mode::Normal;
         }
         _ => {}
@@ -221,11 +221,11 @@ mod tests {
     fn test_panel_switch() {
         let mut app = App::new();
         let runner = MockRunner::new();
-        assert_eq!(app.panel, Panel::Left);
+        assert_eq!(app.uncommitted.panel, Panel::Left);
         handle_key(&mut app, mock_key(KeyCode::Char('l')), &runner);
-        assert_eq!(app.panel, Panel::Right);
+        assert_eq!(app.uncommitted.panel, Panel::Right);
         handle_key(&mut app, mock_key(KeyCode::Char('h')), &runner);
-        assert_eq!(app.panel, Panel::Left);
+        assert_eq!(app.uncommitted.panel, Panel::Left);
     }
 
     #[test]
@@ -278,17 +278,17 @@ mod tests {
         // Type 'f' — both match ("fix" and "feature")
         handle_key(&mut app, mock_key(KeyCode::Char('f')), &runner);
         assert!(matches!(&app.mode, Mode::Search { query } if query == "f"));
-        assert_eq!(app.filtered_log_indices, Some(vec![0, 1]));
+        assert_eq!(app.search.filtered_log_indices, Some(vec![0, 1]));
 
         // Type 'i' — only "fix bug" matches
         handle_key(&mut app, mock_key(KeyCode::Char('i')), &runner);
         assert!(matches!(&app.mode, Mode::Search { query } if query == "fi"));
-        assert_eq!(app.filtered_log_indices, Some(vec![0]));
+        assert_eq!(app.search.filtered_log_indices, Some(vec![0]));
 
         // Backspace — back to "f", both match again
         handle_key(&mut app, mock_key(KeyCode::Backspace), &runner);
         assert!(matches!(&app.mode, Mode::Search { query } if query == "f"));
-        assert_eq!(app.filtered_log_indices, Some(vec![0, 1]));
+        assert_eq!(app.search.filtered_log_indices, Some(vec![0, 1]));
     }
 
     #[test]
@@ -314,7 +314,7 @@ mod tests {
                 parent_hashes: vec!["p2".into()],
             },
         ];
-        app.pre_search_cursor = Some(0);
+        app.search.pre_search_cursor = Some(0);
         app.mode = Mode::Search { query: "second".into() };
         app.update_search_filter("second");
 
@@ -330,9 +330,9 @@ mod tests {
         assert_eq!(app.mode, Mode::CommitDetail);
         assert_eq!(app.mode_stack.len(), 1);
         assert!(matches!(&app.mode_stack[0], Mode::Search { query } if query == "second"));
-        assert_eq!(app.filtered_log_indices, Some(vec![1]));
-        assert_eq!(app.pre_search_cursor, Some(0));
-        assert_eq!(app.commit_detail_commit.as_ref().unwrap().hash, "bbb222");
+        assert_eq!(app.search.filtered_log_indices, Some(vec![1]));
+        assert_eq!(app.search.pre_search_cursor, Some(0));
+        assert_eq!(app.commit_detail.commit.as_ref().unwrap().hash, "bbb222");
     }
 
     #[test]
@@ -340,7 +340,7 @@ mod tests {
         let mut app = App::new();
         app.log_entries = vec![];
         app.mode = Mode::Search { query: "nothing".into() };
-        app.filtered_log_indices = Some(vec![]);
+        app.search.filtered_log_indices = Some(vec![]);
         app.log_list_state.select(None);
         let runner = MockRunner::new();
 
@@ -351,16 +351,16 @@ mod tests {
     #[test]
     fn test_search_esc_restores_cursor() {
         let mut app = App::new();
-        app.pre_search_cursor = Some(5);
+        app.search.pre_search_cursor = Some(5);
         app.mode = Mode::Search {
             query: "test".into(),
         };
-        app.filtered_log_indices = Some(vec![0, 2]);
+        app.search.filtered_log_indices = Some(vec![0, 2]);
         let runner = MockRunner::new();
 
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
         assert_eq!(app.mode, Mode::Normal);
-        assert_eq!(app.filtered_log_indices, None);
+        assert_eq!(app.search.filtered_log_indices, None);
         assert_eq!(app.log_list_state.selected(), Some(5));
     }
 
@@ -368,8 +368,8 @@ mod tests {
     fn test_search_esc_clears_mode_stack() {
         let mut app = App::new();
         app.mode = Mode::Search { query: "test".into() };
-        app.pre_search_cursor = Some(3);
-        app.filtered_log_indices = Some(vec![0]);
+        app.search.pre_search_cursor = Some(3);
+        app.search.filtered_log_indices = Some(vec![0]);
         app.mode_stack = vec![Mode::Normal]; // leftover from some transition
         let runner = MockRunner::new();
 
@@ -377,7 +377,7 @@ mod tests {
 
         assert_eq!(app.mode, Mode::Normal);
         assert!(app.mode_stack.is_empty());
-        assert_eq!(app.filtered_log_indices, None);
+        assert_eq!(app.search.filtered_log_indices, None);
     }
 
     #[test]
@@ -522,13 +522,13 @@ mod tests {
         // Step 1: Enter search mode
         handle_key(&mut app, mock_key(KeyCode::Char('/')), &runner_search);
         assert!(matches!(app.mode, Mode::Search { .. }));
-        assert_eq!(app.pre_search_cursor, Some(1));
+        assert_eq!(app.search.pre_search_cursor, Some(1));
 
         // Step 2: Type "fix" — both match
         handle_key(&mut app, mock_key(KeyCode::Char('f')), &runner_search);
         handle_key(&mut app, mock_key(KeyCode::Char('i')), &runner_search);
         handle_key(&mut app, mock_key(KeyCode::Char('x')), &runner_search);
-        assert_eq!(app.filtered_log_indices, Some(vec![0, 1]));
+        assert_eq!(app.search.filtered_log_indices, Some(vec![0, 1]));
         assert_eq!(app.log_list_state.selected(), Some(0));
 
         // Step 3: j to move to second result
@@ -544,18 +544,18 @@ mod tests {
             .with_response("diff p2..bbb222 -- lib.rs", "");
         handle_key(&mut app, mock_key(KeyCode::Enter), &runner_detail);
         assert_eq!(app.mode, Mode::CommitDetail);
-        assert_eq!(app.commit_detail_commit.as_ref().unwrap().hash, "bbb222");
+        assert_eq!(app.commit_detail.commit.as_ref().unwrap().hash, "bbb222");
 
         // Step 5: Esc from CommitDetail -> back to Search
         let runner_back = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner_back);
         assert!(matches!(app.mode, Mode::Search { ref query } if query == "fix"));
-        assert_eq!(app.filtered_log_indices, Some(vec![0, 1]));
+        assert_eq!(app.search.filtered_log_indices, Some(vec![0, 1]));
 
         // Step 6: Esc from Search -> back to Normal
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner_back);
         assert_eq!(app.mode, Mode::Normal);
-        assert_eq!(app.filtered_log_indices, None);
+        assert_eq!(app.search.filtered_log_indices, None);
         assert_eq!(app.log_list_state.selected(), Some(1)); // restored
         assert!(app.mode_stack.is_empty());
     }

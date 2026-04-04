@@ -42,7 +42,7 @@ fn render_log_list(f: &mut Frame, app: &mut App, area: Rect) {
     render_log_list_items(f, app, chunks[0]);
 
     match app.log_list_state.selected() {
-        Some(0) if app.filtered_log_indices.is_none() => {
+        Some(0) if app.search.filtered_log_indices.is_none() => {
             render_uncommitted_preview(f, app, chunks[1]);
         }
         Some(_) => render_commit_preview(f, app, chunks[1]),
@@ -58,7 +58,7 @@ fn render_log_list(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_log_list_items(f: &mut Frame, app: &mut App, area: Rect) {
-    let items: Vec<ListItem> = if let Some(ref indices) = app.filtered_log_indices {
+    let items: Vec<ListItem> = if let Some(ref indices) = app.search.filtered_log_indices {
         // Filtered mode: show only matching commits, no graph, no uncommitted row
         indices
             .iter()
@@ -166,7 +166,7 @@ fn render_log_list_items(f: &mut Frame, app: &mut App, area: Rect) {
         items
     };
 
-    let title = if app.filtered_log_indices.is_some() {
+    let title = if app.search.filtered_log_indices.is_some() {
         " Log (filtered) "
     } else {
         " Log "
@@ -185,7 +185,7 @@ fn render_log_list_items(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_commit_preview(f: &mut Frame, app: &mut App, area: Rect) {
-    let commit = match &app.commit_detail_commit {
+    let commit = match &app.commit_detail.commit {
         Some(c) => c,
         None => return,
     };
@@ -217,7 +217,7 @@ fn render_commit_preview(f: &mut Frame, app: &mut App, area: Rect) {
 
     // File list (full width)
     let items: Vec<ListItem> = app
-        .commit_detail_files
+        .commit_detail.files
         .iter()
         .map(|entry| {
             let (code, style) = match entry.status {
@@ -370,7 +370,7 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_commit_detail(f: &mut Frame, app: &mut App, area: Rect) {
-    let commit = match &app.commit_detail_commit {
+    let commit = match &app.commit_detail.commit {
         Some(c) => c,
         None => return,
     };
@@ -411,7 +411,7 @@ fn render_commit_detail(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_file_list(f: &mut Frame, app: &mut App, area: Rect) {
-    let is_focused = app.commit_detail_panel == Panel::Left;
+    let is_focused = app.commit_detail.panel == Panel::Left;
     let border_style = if is_focused {
         Theme::border_focused()
     } else {
@@ -419,7 +419,7 @@ fn render_file_list(f: &mut Frame, app: &mut App, area: Rect) {
     };
 
     let items: Vec<ListItem> = app
-        .commit_detail_files
+        .commit_detail.files
         .iter()
         .map(|entry| {
             let (code, style) = match entry.status {
@@ -444,24 +444,24 @@ fn render_file_list(f: &mut Frame, app: &mut App, area: Rect) {
         .block(block)
         .highlight_style(Theme::selected());
 
-    f.render_stateful_widget(list, area, &mut app.commit_detail_file_state);
+    f.render_stateful_widget(list, area, &mut app.commit_detail.file_state);
 }
 
 fn render_commit_diff(f: &mut Frame, app: &mut App, area: Rect) {
-    let is_focused = app.commit_detail_panel == Panel::Right;
+    let is_focused = app.commit_detail.panel == Panel::Right;
     let border_style = if is_focused {
         Theme::border_focused()
     } else {
         Theme::border()
     };
 
-    if let Some(ref diff_files) = app.commit_detail_diff {
+    if let Some(ref diff_files) = app.commit_detail.diff {
         let block = Block::default()
             .title(" Diff ")
             .borders(Borders::ALL)
             .border_style(border_style);
         let widget = UnifiedDiff::new(diff_files).block(block);
-        f.render_stateful_widget(widget, area, &mut app.commit_detail_diff_state);
+        f.render_stateful_widget(widget, area, &mut app.commit_detail.diff_state);
     } else {
         let block = Block::default()
             .title(" Diff ")
@@ -538,7 +538,7 @@ fn file_status_code(status: &FileStatus) -> &'static str {
 }
 
 fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
-    let is_focused = app.panel == Panel::Left;
+    let is_focused = app.uncommitted.panel == Panel::Left;
     let border_style = if is_focused {
         Theme::border_focused()
     } else {
@@ -630,24 +630,24 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
         .block(block)
         .highlight_style(Theme::selected());
 
-    f.render_stateful_widget(list, area, &mut app.uncommitted_list_state);
+    f.render_stateful_widget(list, area, &mut app.uncommitted.list_state);
 }
 
 fn render_uncommitted_diff(f: &mut Frame, app: &mut App, area: Rect) {
-    let is_focused = app.panel == Panel::Right;
+    let is_focused = app.uncommitted.panel == Panel::Right;
     let border_style = if is_focused {
         Theme::border_focused()
     } else {
         Theme::border()
     };
 
-    if let Some(ref diff_files) = app.current_diff {
+    if let Some(ref diff_files) = app.uncommitted.diff {
         let block = Block::default()
             .title(" Diff ")
             .borders(Borders::ALL)
             .border_style(border_style);
         let widget = UnifiedDiff::new(diff_files).block(block);
-        f.render_stateful_widget(widget, area, &mut app.diff_state);
+        f.render_stateful_widget(widget, area, &mut app.uncommitted.diff_state);
     } else {
         let block = Block::default()
             .title(" Diff ")

@@ -62,39 +62,157 @@ pub enum Panel {
     Right,
 }
 
-pub struct App {
-    pub tab: Tab,
-    pub mode: Mode,
-    pub mode_stack: Vec<Mode>,
+pub struct CommitDetailState {
+    pub commit: Option<CommitInfo>,
+    pub files: Vec<CommitFileEntry>,
+    pub file_state: ListState,
     pub panel: Panel,
-    pub should_quit: bool,
-    pub uncommitted_list_state: ListState,
-    pub log_list_state: ListState,
-    pub branches_list_state: ListState,
+    pub diff: Option<Vec<DiffFile>>,
     pub diff_state: UnifiedDiffState,
-    pub status: Vec<StatusEntry>,
-    pub branches: Vec<BranchInfo>,
-    pub log_entries: Vec<CommitInfo>,
-    pub current_diff: Option<Vec<DiffFile>>,
-    pub status_message: Option<String>,
-    pub status_message_set_at: Option<Instant>,
-    pub conflict_state: Option<ConflictEditorState>,
-    pub conflict_file: Option<ConflictFile>,
-    pub commit_detail_commit: Option<CommitInfo>,
-    pub commit_detail_files: Vec<CommitFileEntry>,
-    pub commit_detail_file_state: ListState,
-    pub commit_detail_panel: Panel,
-    pub commit_detail_diff: Option<Vec<DiffFile>>,
-    pub commit_detail_diff_state: UnifiedDiffState,
-    pub return_to_uncommitted_detail: bool,
+}
+
+impl CommitDetailState {
+    pub fn new() -> Self {
+        Self {
+            commit: None,
+            files: Vec::new(),
+            file_state: ListState::default(),
+            panel: Panel::Left,
+            diff: None,
+            diff_state: UnifiedDiffState::new(),
+        }
+    }
+}
+
+impl Default for CommitDetailState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct UncommittedState {
+    pub list_state: ListState,
     /// Maps visual list index to (status_index, is_in_staged_section).
     /// None for section headers.
-    pub uncommitted_file_map: Vec<Option<(usize, bool)>>,
+    pub file_map: Vec<Option<(usize, bool)>>,
+    pub diff: Option<Vec<DiffFile>>,
+    pub diff_state: UnifiedDiffState,
+    pub panel: Panel,
+}
+
+impl UncommittedState {
+    pub fn new() -> Self {
+        Self {
+            list_state: ListState::default(),
+            file_map: Vec::new(),
+            diff: None,
+            diff_state: UnifiedDiffState::new(),
+            panel: Panel::Left,
+        }
+    }
+}
+
+impl Default for UncommittedState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct SearchState {
     /// Original cursor position before entering search mode, for Esc restoration.
     pub pre_search_cursor: Option<usize>,
     /// Indices into `log_entries` matching the current search query.
     /// `None` = no filter (normal display). `Some(vec)` = filtered view.
     pub filtered_log_indices: Option<Vec<usize>>,
+}
+
+impl SearchState {
+    pub fn new() -> Self {
+        Self {
+            pre_search_cursor: None,
+            filtered_log_indices: None,
+        }
+    }
+}
+
+impl Default for SearchState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct ConflictResolveState {
+    pub editor_state: Option<ConflictEditorState>,
+    pub file: Option<ConflictFile>,
+}
+
+impl ConflictResolveState {
+    pub fn new() -> Self {
+        Self {
+            editor_state: None,
+            file: None,
+        }
+    }
+}
+
+impl Default for ConflictResolveState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct StatusBar {
+    pub message: Option<String>,
+    pub set_at: Option<Instant>,
+}
+
+impl StatusBar {
+    pub fn new() -> Self {
+        Self {
+            message: None,
+            set_at: None,
+        }
+    }
+
+    pub fn set(&mut self, msg: impl Into<String>) {
+        self.message = Some(msg.into());
+        self.set_at = Some(Instant::now());
+    }
+
+    pub fn clear_if_expired(&mut self) {
+        if let Some(set_at) = self.set_at
+            && set_at.elapsed() > STATUS_MESSAGE_TIMEOUT
+        {
+            self.message = None;
+            self.set_at = None;
+        }
+    }
+}
+
+impl Default for StatusBar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+const STATUS_MESSAGE_TIMEOUT: Duration = Duration::from_secs(3);
+
+pub struct App {
+    pub tab: Tab,
+    pub mode: Mode,
+    pub mode_stack: Vec<Mode>,
+    pub should_quit: bool,
+    pub return_to_uncommitted_detail: bool,
+    pub status: Vec<StatusEntry>,
+    pub branches: Vec<BranchInfo>,
+    pub log_entries: Vec<CommitInfo>,
+    pub log_list_state: ListState,
+    pub branches_list_state: ListState,
+    pub uncommitted: UncommittedState,
+    pub commit_detail: CommitDetailState,
+    pub search: SearchState,
+    pub conflict: ConflictResolveState,
+    pub status_bar: StatusBar,
 }
 
 impl App {
@@ -103,30 +221,18 @@ impl App {
             tab: Tab::Log,
             mode: Mode::Normal,
             mode_stack: Vec::new(),
-            panel: Panel::Left,
             should_quit: false,
-            uncommitted_list_state: ListState::default(),
-            log_list_state: ListState::default(),
-            branches_list_state: ListState::default(),
-            diff_state: UnifiedDiffState::new(),
+            return_to_uncommitted_detail: false,
             status: Vec::new(),
             branches: Vec::new(),
             log_entries: Vec::new(),
-            current_diff: None,
-            status_message: None,
-            status_message_set_at: None,
-            conflict_state: None,
-            conflict_file: None,
-            commit_detail_commit: None,
-            commit_detail_files: Vec::new(),
-            commit_detail_file_state: ListState::default(),
-            commit_detail_panel: Panel::Left,
-            commit_detail_diff: None,
-            commit_detail_diff_state: UnifiedDiffState::new(),
-            return_to_uncommitted_detail: false,
-            uncommitted_file_map: Vec::new(),
-            pre_search_cursor: None,
-            filtered_log_indices: None,
+            log_list_state: ListState::default(),
+            branches_list_state: ListState::default(),
+            uncommitted: UncommittedState::new(),
+            commit_detail: CommitDetailState::new(),
+            search: SearchState::new(),
+            conflict: ConflictResolveState::new(),
+            status_bar: StatusBar::new(),
         }
     }
 
@@ -168,11 +274,6 @@ impl App {
         if let Ok(log) = gitat_core::log::get_log(runner, 100, None) {
             self.log_entries = log;
         }
-    }
-
-    pub fn set_status_message(&mut self, msg: impl Into<String>) {
-        self.status_message = Some(msg.into());
-        self.status_message_set_at = Some(Instant::now());
     }
 
     pub fn rebuild_uncommitted_file_map(&mut self) {
@@ -231,49 +332,52 @@ impl App {
             }
         }
 
-        self.uncommitted_file_map = map;
+        self.uncommitted.file_map = map;
     }
 
     pub fn clamp_uncommitted_selection(&mut self) {
-        if self.uncommitted_file_map.is_empty() {
-            self.uncommitted_list_state.select(None);
+        if self.uncommitted.file_map.is_empty() {
+            self.uncommitted.list_state.select(None);
             return;
         }
 
-        let current = match self.uncommitted_list_state.selected() {
+        let current = match self.uncommitted.list_state.selected() {
             Some(i) => i,
             None => {
-                if let Some(pos) = self.uncommitted_file_map.iter().position(|x| x.is_some()) {
-                    self.uncommitted_list_state.select(Some(pos));
+                if let Some(pos) = self.uncommitted.file_map.iter().position(|x| x.is_some()) {
+                    self.uncommitted.list_state.select(Some(pos));
                 }
                 return;
             }
         };
 
         // If current is valid and points to a file, keep it
-        if current < self.uncommitted_file_map.len() && self.uncommitted_file_map[current].is_some()
+        if current < self.uncommitted.file_map.len()
+            && self.uncommitted.file_map[current].is_some()
         {
             return;
         }
 
         // Find nearest valid file entry (forward first, then backward)
         let forward = self
-            .uncommitted_file_map
+            .uncommitted
+            .file_map
             .iter()
             .enumerate()
             .skip(current)
             .find(|(_, x)| x.is_some())
             .map(|(i, _)| i);
-        let backward = self.uncommitted_file_map[..current.min(self.uncommitted_file_map.len())]
+        let backward = self.uncommitted.file_map
+            [..current.min(self.uncommitted.file_map.len())]
             .iter()
             .rposition(|x| x.is_some());
 
-        self.uncommitted_list_state.select(forward.or(backward));
+        self.uncommitted.list_state.select(forward.or(backward));
     }
 
     pub fn update_search_filter(&mut self, query: &str) {
         if query.is_empty() {
-            self.filtered_log_indices = None;
+            self.search.filtered_log_indices = None;
             return;
         }
         let query_lower = query.to_lowercase();
@@ -288,18 +392,10 @@ impl App {
             })
             .map(|(i, _)| i)
             .collect();
-        self.filtered_log_indices = Some(indices);
+        self.search.filtered_log_indices = Some(indices);
         self.log_list_state.select(Some(0));
     }
 
-    pub fn clear_expired_status_message(&mut self) {
-        if let Some(set_at) = self.status_message_set_at
-            && set_at.elapsed() > Duration::from_secs(3)
-        {
-            self.status_message = None;
-            self.status_message_set_at = None;
-        }
-    }
 }
 
 impl Default for App {
@@ -325,7 +421,7 @@ mod tests {
         let app = App::new();
         assert_eq!(app.tab, Tab::Log);
         assert_eq!(app.mode, Mode::Normal);
-        assert_eq!(app.panel, Panel::Left);
+        assert_eq!(app.uncommitted.panel, Panel::Left);
         assert!(!app.should_quit);
     }
 
@@ -339,26 +435,26 @@ mod tests {
     #[test]
     fn test_status_message_not_cleared_before_expiry() {
         let mut app = App::new();
-        app.set_status_message("hello");
-        app.clear_expired_status_message();
-        assert!(app.status_message.is_some());
+        app.status_bar.set("hello");
+        app.status_bar.clear_if_expired();
+        assert!(app.status_bar.message.is_some());
     }
 
     #[test]
     fn test_status_message_cleared_after_expiry() {
         let mut app = App::new();
-        app.set_status_message("hello");
-        app.status_message_set_at = Some(Instant::now() - Duration::from_secs(4));
-        app.clear_expired_status_message();
-        assert!(app.status_message.is_none());
-        assert!(app.status_message_set_at.is_none());
+        app.status_bar.set("hello");
+        app.status_bar.set_at = Some(Instant::now() - Duration::from_secs(4));
+        app.status_bar.clear_if_expired();
+        assert!(app.status_bar.message.is_none());
+        assert!(app.status_bar.set_at.is_none());
     }
 
     #[test]
     fn test_app_search_fields_initial_state() {
         let app = App::new();
-        assert_eq!(app.pre_search_cursor, None);
-        assert_eq!(app.filtered_log_indices, None);
+        assert_eq!(app.search.pre_search_cursor, None);
+        assert_eq!(app.search.filtered_log_indices, None);
     }
 
     #[test]
@@ -397,20 +493,20 @@ mod tests {
 
         // Filter by "fix" — only first entry matches
         app.update_search_filter("fix");
-        assert_eq!(app.filtered_log_indices, Some(vec![0]));
+        assert_eq!(app.search.filtered_log_indices, Some(vec![0]));
         assert_eq!(app.log_list_state.selected(), Some(0));
 
         // Filter by "alice" (case-insensitive) — matches author in entries 0 and 2
         app.update_search_filter("alice");
-        assert_eq!(app.filtered_log_indices, Some(vec![0, 2]));
+        assert_eq!(app.search.filtered_log_indices, Some(vec![0, 2]));
 
         // Filter by "bbb" — matches short_hash
         app.update_search_filter("bbb");
-        assert_eq!(app.filtered_log_indices, Some(vec![1]));
+        assert_eq!(app.search.filtered_log_indices, Some(vec![1]));
 
         // Empty query — clears filter
         app.update_search_filter("");
-        assert_eq!(app.filtered_log_indices, None);
+        assert_eq!(app.search.filtered_log_indices, None);
     }
 
     #[test]
