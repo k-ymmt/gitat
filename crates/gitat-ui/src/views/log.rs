@@ -4,6 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use gitat_core::commit_detail::FileChangeStatus;
 use gitat_core::status::FileStatus;
+use gitat_core::graph;
 use crate::app::{App, Mode, Panel};
 use crate::theme::Theme;
 use crate::widgets::unified_diff::UnifiedDiff;
@@ -34,6 +35,9 @@ fn render_log_list(f: &mut Frame, app: &mut App, area: Rect) {
 fn render_log_list_items(f: &mut Frame, app: &mut App, area: Rect) {
     let mut items: Vec<ListItem> = Vec::new();
 
+    // Build graph for all log entries
+    let graph_rows = graph::build_graph(&app.log_entries);
+
     // Uncommitted changes item (always at index 0)
     let staged_count = app.status.iter().filter(|e| e.is_staged()).count();
     let unstaged_count = app.status.iter().filter(|e| {
@@ -44,29 +48,63 @@ fn render_log_list_items(f: &mut Frame, app: &mut App, area: Rect) {
     }).count();
     let total_changes = staged_count + unstaged_count + untracked_count;
 
-    let uncommitted_spans = if total_changes > 0 {
-        vec![
+    // Graph prefix for uncommitted changes: '*' if changes exist, '|' otherwise
+    let mut uncommitted_spans: Vec<Span> = Vec::new();
+    if let Some(first_row) = graph_rows.first() {
+        if total_changes > 0 {
+            uncommitted_spans.push(Span::styled("* ", Theme::graph_color(0)));
+            for cell in first_row.cells.iter().skip(1) {
+                if cell.symbol != ' ' {
+                    uncommitted_spans.push(Span::styled("| ", Theme::graph_color(cell.color_index)));
+                } else {
+                    uncommitted_spans.push(Span::raw("  "));
+                }
+            }
+        } else {
+            for cell in &first_row.cells {
+                if cell.symbol != ' ' {
+                    uncommitted_spans.push(Span::styled("| ", Theme::graph_color(cell.color_index)));
+                } else {
+                    uncommitted_spans.push(Span::raw("  "));
+                }
+            }
+        }
+    } else if total_changes > 0 {
+        uncommitted_spans.push(Span::styled("* ", Theme::graph_color(0)));
+    }
+
+    if total_changes > 0 {
+        uncommitted_spans.extend([
             Span::styled("● ", Theme::border_focused()),
             Span::styled("Uncommitted Changes", Theme::border_focused()),
             Span::styled(
                 format!(" — {} staged, {} unstaged", staged_count, unstaged_count + untracked_count),
                 Theme::diff_context(),
             ),
-        ]
+        ]);
     } else {
-        vec![
+        uncommitted_spans.extend([
             Span::styled("● ", Theme::border_focused()),
             Span::styled("Uncommitted Changes", Theme::border_focused()),
-        ]
-    };
+        ]);
+    }
     items.push(ListItem::new(Line::from(uncommitted_spans)));
 
-    // Log entries (index 1..N)
-    for c in &app.log_entries {
-        let mut spans = vec![
-            Span::styled(&c.short_hash, Theme::commit_hash()),
-            Span::raw(" "),
-        ];
+    // Log entries with graph (index 1..N)
+    for (i, c) in app.log_entries.iter().enumerate() {
+        let mut spans: Vec<Span> = Vec::new();
+
+        // Graph prefix
+        if let Some(row) = graph_rows.get(i) {
+            for cell in &row.cells {
+                let s = format!("{} ", cell.symbol);
+                spans.push(Span::styled(s, Theme::graph_color(cell.color_index)));
+            }
+        }
+
+        // Commit info
+        spans.push(Span::styled(&c.short_hash, Theme::commit_hash()));
+        spans.push(Span::raw(" "));
         if !c.refs.is_empty() {
             spans.push(Span::styled(
                 format!("({}) ", c.refs.join(", ")),
