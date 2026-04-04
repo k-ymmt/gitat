@@ -1,0 +1,7 @@
+---
+source: crates/gitat-ui/src/widgets/side_by_side_diff.rs
+assertion_line: 883
+expression: buffer_to_string(&buf)
+---
+   1 こ ん に ち は 世 界            │   1 こ ん に ち は 世 界
+   2 古 い コ ー ド                │   2 新 し い コ ー ド

@@ -4,6 +4,7 @@ use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::{Block, StatefulWidget, Widget};
 use similar::{ChangeTag, TextDiff};
+use unicode_width::UnicodeWidthChar;
 
 use crate::theme::Theme;
 
@@ -273,10 +274,23 @@ fn write_segments(
         }
     }
 
-    // Apply horizontal scroll: skip `scroll_x` characters
-    let visible_chars = chars.into_iter().skip(scroll_x as usize);
-    for (col, (ch, style)) in (0_u16..).zip(visible_chars) {
-        if col >= max_width {
+    // Apply horizontal scroll: skip characters whose total display width >= scroll_x
+    let mut skipped_width: u16 = 0;
+    let mut skip_count = 0;
+    for &(ch, _) in &chars {
+        let w = ch.width().unwrap_or(0) as u16;
+        if skipped_width + w > scroll_x {
+            break;
+        }
+        skipped_width += w;
+        skip_count += 1;
+    }
+
+    let visible_chars = chars.into_iter().skip(skip_count);
+    let mut col: u16 = 0;
+    for (ch, style) in visible_chars {
+        let w = ch.width().unwrap_or(0) as u16;
+        if col + w > max_width {
             break;
         }
         let px = x_start + col;
@@ -284,6 +298,7 @@ fn write_segments(
             cell.set_char(ch);
             cell.set_style(style);
         }
+        col += w;
     }
 }
 
@@ -813,6 +828,83 @@ mod tests {
             ],
         }];
         let mut state = SideBySideDiffState::new();
+        terminal
+            .draw(|f| {
+                let widget = SideBySideDiff::new(&diff);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_cjk_characters() {
+        let backend = TestBackend::new(60, 5);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let diff = vec![DiffFile {
+            old_path: "hello.txt".to_string(),
+            new_path: "hello.txt".to_string(),
+            hunks: vec![DiffHunk {
+                old_start: 1,
+                old_count: 2,
+                new_start: 1,
+                new_count: 2,
+                lines: vec![
+                    DiffLine {
+                        kind: DiffLineKind::Context,
+                        content: "こんにちは世界".to_string(),
+                        old_line_no: Some(1),
+                        new_line_no: Some(1),
+                    },
+                    DiffLine {
+                        kind: DiffLineKind::Removed,
+                        content: "古いコード".to_string(),
+                        old_line_no: Some(2),
+                        new_line_no: None,
+                    },
+                    DiffLine {
+                        kind: DiffLineKind::Added,
+                        content: "新しいコード".to_string(),
+                        old_line_no: None,
+                        new_line_no: Some(2),
+                    },
+                ],
+            }],
+        }];
+        let mut state = SideBySideDiffState::new();
+        terminal
+            .draw(|f| {
+                let widget = SideBySideDiff::new(&diff);
+                f.render_stateful_widget(widget, f.area(), &mut state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        insta::assert_snapshot!(buffer_to_string(&buf));
+    }
+
+    #[test]
+    fn snapshot_render_cjk_with_horizontal_scroll() {
+        let backend = TestBackend::new(60, 4);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let diff = vec![DiffFile {
+            old_path: "hello.txt".to_string(),
+            new_path: "hello.txt".to_string(),
+            hunks: vec![DiffHunk {
+                old_start: 1,
+                old_count: 1,
+                new_start: 1,
+                new_count: 1,
+                lines: vec![DiffLine {
+                    kind: DiffLineKind::Context,
+                    content: "あいうえおかきくけこ".to_string(),
+                    old_line_no: Some(1),
+                    new_line_no: Some(1),
+                }],
+            }],
+        }];
+        let mut state = SideBySideDiffState::new();
+        state.scroll_x = 4; // skip 2 CJK chars (4 display columns)
         terminal
             .draw(|f| {
                 let widget = SideBySideDiff::new(&diff);
