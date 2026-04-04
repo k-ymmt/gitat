@@ -261,6 +261,27 @@ impl App {
         self.uncommitted_list_state.select(forward.or(backward));
     }
 
+    pub fn update_search_filter(&mut self, query: &str) {
+        if query.is_empty() {
+            self.filtered_log_indices = None;
+            return;
+        }
+        let query_lower = query.to_lowercase();
+        let indices: Vec<usize> = self
+            .log_entries
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| {
+                c.message.to_lowercase().contains(&query_lower)
+                    || c.short_hash.to_lowercase().contains(&query_lower)
+                    || c.author.to_lowercase().contains(&query_lower)
+            })
+            .map(|(i, _)| i)
+            .collect();
+        self.filtered_log_indices = Some(indices);
+        self.log_list_state.select(Some(0));
+    }
+
     pub fn clear_expired_status_message(&mut self) {
         if let Some(set_at) = self.status_message_set_at
             && set_at.elapsed() > Duration::from_secs(3)
@@ -327,6 +348,58 @@ mod tests {
     fn test_app_search_fields_initial_state() {
         let app = App::new();
         assert_eq!(app.pre_search_cursor, None);
+        assert_eq!(app.filtered_log_indices, None);
+    }
+
+    #[test]
+    fn test_update_search_filter_matches_message() {
+        let mut app = App::new();
+        app.log_entries = vec![
+            gitat_core::log::CommitInfo {
+                hash: "aaa".into(),
+                short_hash: "aaa".into(),
+                author: "Alice".into(),
+                date: "2026-01-01".into(),
+                message: "fix login bug".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+            gitat_core::log::CommitInfo {
+                hash: "bbb".into(),
+                short_hash: "bbb".into(),
+                author: "Bob".into(),
+                date: "2026-01-02".into(),
+                message: "add tests".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+            gitat_core::log::CommitInfo {
+                hash: "ccc".into(),
+                short_hash: "ccc".into(),
+                author: "Alice".into(),
+                date: "2026-01-03".into(),
+                message: "update readme".into(),
+                refs: vec![],
+                parent_hashes: vec![],
+            },
+        ];
+        app.log_list_state.select(Some(2));
+
+        // Filter by "fix" — only first entry matches
+        app.update_search_filter("fix");
+        assert_eq!(app.filtered_log_indices, Some(vec![0]));
+        assert_eq!(app.log_list_state.selected(), Some(0));
+
+        // Filter by "alice" (case-insensitive) — matches author in entries 0 and 2
+        app.update_search_filter("alice");
+        assert_eq!(app.filtered_log_indices, Some(vec![0, 2]));
+
+        // Filter by "bbb" — matches short_hash
+        app.update_search_filter("bbb");
+        assert_eq!(app.filtered_log_indices, Some(vec![1]));
+
+        // Empty query — clears filter
+        app.update_search_filter("");
         assert_eq!(app.filtered_log_indices, None);
     }
 
