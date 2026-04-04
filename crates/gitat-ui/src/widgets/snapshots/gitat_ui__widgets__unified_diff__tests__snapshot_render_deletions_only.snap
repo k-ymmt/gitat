@@ -2,5 +2,5 @@
 source: crates/gitat-ui/src/widgets/unified_diff.rs
 expression: buffer_to_string(&buf)
 ---
-   1 fn removed1() {}         │
-   2 fn removed2() {}         │
+   1    │fn removed1() {}
+   2    │fn removed2() {}
