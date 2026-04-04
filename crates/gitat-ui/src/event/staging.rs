@@ -2,22 +2,21 @@ use crate::app::{App, Mode};
 use crate::widgets::unified_diff::UnifiedDiffState;
 use gitat_core::runner::CommandRunner;
 
-fn selected_status_index(app: &App) -> Option<usize> {
+/// Returns (status_index, is_in_staged_section) for the currently selected file.
+fn selected_file_info(app: &App) -> Option<(usize, bool)> {
     let visual_idx = app.uncommitted_list_state.selected()?;
     app.uncommitted_file_map.get(visual_idx).copied().flatten()
 }
 
 pub(super) fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
-    let idx = match selected_status_index(app) {
-        Some(i) => i,
+    let (idx, is_staged) = match selected_file_info(app) {
+        Some(info) => info,
         None => return,
     };
     let entry = match app.status.get(idx) {
         Some(e) => e.clone(),
         None => return,
     };
-
-    let is_staged = entry.is_staged();
 
     let result = if is_staged {
         gitat_core::stage::unstage_file(runner, &entry.path)
@@ -38,8 +37,8 @@ pub(super) fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
 }
 
 pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
-    let idx = match selected_status_index(app) {
-        Some(i) => i,
+    let (idx, is_staged) = match selected_file_info(app) {
+        Some(info) => info,
         None => return,
     };
     let entry = match app.status.get(idx) {
@@ -58,8 +57,6 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
     };
 
     let hunk_index = app.diff_state.current_hunk;
-
-    let is_staged = entry.is_staged();
 
     let result = if is_staged {
         gitat_core::stage::unstage_hunk(runner, &diff_file, hunk_index)
@@ -104,16 +101,14 @@ pub(super) fn load_diff_for_selected(app: &mut App, runner: &dyn CommandRunner) 
     if !matches!(app.mode, Mode::UncommittedDetail) {
         return;
     }
-    let idx = match selected_status_index(app) {
-        Some(i) => i,
+    let (idx, staged) = match selected_file_info(app) {
+        Some(info) => info,
         None => return,
     };
     let entry = match app.status.get(idx) {
         Some(e) => e.clone(),
         None => return,
     };
-
-    let staged = entry.is_staged();
 
     match gitat_core::diff::get_diff_for_file(runner, &entry.path, staged) {
         Ok(diff) => {

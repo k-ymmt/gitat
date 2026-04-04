@@ -29,16 +29,14 @@ fn load_uncommitted_diff(app: &mut App, runner: &dyn CommandRunner) {
         Some(i) => i,
         None => return,
     };
-    let status_idx = match app.uncommitted_file_map.get(visual_idx) {
-        Some(Some(i)) => *i,
+    let (status_idx, staged) = match app.uncommitted_file_map.get(visual_idx) {
+        Some(Some(info)) => *info,
         _ => return,
     };
     let entry = match app.status.get(status_idx) {
         Some(e) => e.clone(),
         None => return,
     };
-
-    let staged = entry.is_staged();
     match gitat_core::diff::get_diff_for_file(runner, &entry.path, staged) {
         Ok(diff) => {
             app.current_diff = Some(diff);

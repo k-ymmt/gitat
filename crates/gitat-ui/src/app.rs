@@ -86,8 +86,9 @@ pub struct App {
     pub commit_detail_diff: Option<Vec<DiffFile>>,
     pub commit_detail_diff_state: UnifiedDiffState,
     pub return_to_uncommitted_detail: bool,
-    /// Maps visual list index to status entry index. None for section headers.
-    pub uncommitted_file_map: Vec<Option<usize>>,
+    /// Maps visual list index to (status_index, is_in_staged_section).
+    /// None for section headers.
+    pub uncommitted_file_map: Vec<Option<(usize, bool)>>,
 }
 
 impl App {
@@ -155,7 +156,7 @@ impl App {
     }
 
     pub fn rebuild_uncommitted_file_map(&mut self) {
-        let mut map: Vec<Option<usize>> = Vec::new();
+        let mut map: Vec<Option<(usize, bool)>> = Vec::new();
 
         // Staged section (must match render_uncommitted_file_list order)
         let staged: Vec<usize> = self
@@ -172,18 +173,17 @@ impl App {
         if !staged.is_empty() {
             map.push(None); // header
             for idx in staged {
-                map.push(Some(idx));
+                map.push(Some((idx, true)));
             }
         }
 
-        // Modified (unstaged) section
+        // Modified (unstaged) section — includes files that are also staged (e.g. MM)
         let modified: Vec<usize> = self
             .status
             .iter()
             .enumerate()
             .filter(|(_, e)| {
-                e.index_status == FileStatus::Unmodified
-                    && e.worktree_status != FileStatus::Unmodified
+                e.worktree_status != FileStatus::Unmodified
                     && e.worktree_status != FileStatus::Untracked
             })
             .map(|(i, _)| i)
@@ -192,7 +192,7 @@ impl App {
         if !modified.is_empty() {
             map.push(None); // header
             for idx in modified {
-                map.push(Some(idx));
+                map.push(Some((idx, false)));
             }
         }
 
@@ -208,7 +208,7 @@ impl App {
         if !untracked.is_empty() {
             map.push(None); // header
             for idx in untracked {
-                map.push(Some(idx));
+                map.push(Some((idx, false)));
             }
         }
 

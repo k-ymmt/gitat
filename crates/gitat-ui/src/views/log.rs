@@ -192,10 +192,9 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
         }
     }
 
-    // Modified (unstaged) section
+    // Modified (unstaged) section — includes files that are also staged (e.g. MM)
     let modified: Vec<_> = app.status.iter().filter(|e| {
-        e.index_status == FileStatus::Unmodified
-            && e.worktree_status != FileStatus::Unmodified
+        e.worktree_status != FileStatus::Unmodified
             && e.worktree_status != FileStatus::Untracked
     }).collect();
 
@@ -426,10 +425,9 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
         }
     }
 
-    // Modified (unstaged) section
+    // Modified (unstaged) section — includes files that are also staged (e.g. MM)
     let modified: Vec<_> = app.status.iter().filter(|e| {
-        e.index_status == FileStatus::Unmodified
-            && e.worktree_status != FileStatus::Unmodified
+        e.worktree_status != FileStatus::Unmodified
             && e.worktree_status != FileStatus::Untracked
     }).collect();
 
