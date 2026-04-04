@@ -1,8 +1,0 @@
----
-source: crates/gitat-ui/src/widgets/unified_diff.rs
-assertion_line: 749
-expression: buffer_to_string(&buf)
----
-   1 ain() {                  │   1 ain() {
-   2 old_code();              │   2 new_code();
-   3                          │   3
