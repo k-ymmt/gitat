@@ -29,6 +29,10 @@ pub(super) fn stage_or_unstage(app: &mut App, runner: &dyn CommandRunner) {
             app.refresh(runner);
             app.rebuild_uncommitted_file_map();
             app.clamp_uncommitted_selection();
+            // Reload diff for the new selection, or clear if nothing selected
+            app.current_diff = None;
+            app.diff_state = UnifiedDiffState::new();
+            load_diff_for_selected(app, runner);
         }
         Err(e) => {
             app.set_status_message(format!("Stage/unstage failed: {e}"));
