@@ -1,0 +1,5 @@
+---
+source: crates/gitat-ui/src/widgets/unified_diff.rs
+expression: buffer_to_string(&buf)
+---
+   1 う え お か き く け こ          │   1 う え お か き く け こ

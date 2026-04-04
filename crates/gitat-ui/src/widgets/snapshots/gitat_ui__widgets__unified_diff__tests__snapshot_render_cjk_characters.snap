@@ -1,6 +1,5 @@
 ---
-source: crates/gitat-ui/src/widgets/side_by_side_diff.rs
-assertion_line: 883
+source: crates/gitat-ui/src/widgets/unified_diff.rs
 expression: buffer_to_string(&buf)
 ---
    1 こ ん に ち は 世 界            │   1 こ ん に ち は 世 界

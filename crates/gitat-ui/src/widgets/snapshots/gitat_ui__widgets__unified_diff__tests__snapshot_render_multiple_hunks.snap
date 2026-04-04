@@ -1,0 +1,8 @@
+---
+source: crates/gitat-ui/src/widgets/unified_diff.rs
+expression: buffer_to_string(&buf)
+---
+   1 fn first() {             │   1 fn first() {
+   2     old1();              │   2     new1();
+  10 fn second() {            │  10 fn second() {
+  11     old2();              │  11     new2();

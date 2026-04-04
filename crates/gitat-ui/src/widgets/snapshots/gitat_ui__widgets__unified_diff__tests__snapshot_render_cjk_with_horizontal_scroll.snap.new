@@ -1,5 +1,5 @@
 ---
-source: crates/gitat-ui/src/widgets/side_by_side_diff.rs
+source: crates/gitat-ui/src/widgets/unified_diff.rs
 assertion_line: 915
 expression: buffer_to_string(&buf)
 ---

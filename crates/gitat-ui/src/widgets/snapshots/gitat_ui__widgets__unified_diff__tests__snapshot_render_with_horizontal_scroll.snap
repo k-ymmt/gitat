@@ -1,6 +1,5 @@
 ---
-source: crates/gitat-ui/src/widgets/side_by_side_diff.rs
-assertion_line: 734
+source: crates/gitat-ui/src/widgets/unified_diff.rs
 expression: buffer_to_string(&buf)
 ---
    1 ain() {                  │   1 ain() {

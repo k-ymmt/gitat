@@ -1,0 +1,7 @@
+---
+source: crates/gitat-ui/src/widgets/unified_diff.rs
+assertion_line: 693
+expression: buffer_to_string(&buf)
+---
+                              │   1 fn hello() {}
+                              │   2 fn world() {}
