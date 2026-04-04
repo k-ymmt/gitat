@@ -8,7 +8,7 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::theme::Theme;
 
-/// A paired row in the side-by-side display
+/// A paired row in the unified diff display
 struct DiffRow {
     left_line_no: Option<u32>,
     left_content: Option<String>,
@@ -18,20 +18,20 @@ struct DiffRow {
     right_kind: DiffLineKind,
 }
 
-pub struct SideBySideDiffState {
+pub struct UnifiedDiffState {
     pub scroll_y: u16,
     pub scroll_x: u16,
     pub current_hunk: usize,
     hunk_offsets: Vec<u16>,
 }
 
-impl Default for SideBySideDiffState {
+impl Default for UnifiedDiffState {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SideBySideDiffState {
+impl UnifiedDiffState {
     pub fn new() -> Self {
         Self {
             scroll_y: 0,
@@ -72,12 +72,12 @@ impl SideBySideDiffState {
     }
 }
 
-pub struct SideBySideDiff<'a> {
+pub struct UnifiedDiff<'a> {
     diff_files: &'a [DiffFile],
     block: Option<Block<'a>>,
 }
 
-impl<'a> SideBySideDiff<'a> {
+impl<'a> UnifiedDiff<'a> {
     pub fn new(diff_files: &'a [DiffFile]) -> Self {
         Self {
             diff_files,
@@ -91,7 +91,7 @@ impl<'a> SideBySideDiff<'a> {
     }
 }
 
-/// Takes a `DiffHunk` and returns paired rows for side-by-side display.
+/// Takes a `DiffHunk` and returns paired rows for unified diff display.
 fn pair_lines(hunk: &DiffHunk) -> Vec<DiffRow> {
     let mut rows = Vec::new();
     let mut removed_buf: Vec<&DiffLine> = Vec::new();
@@ -159,18 +159,15 @@ struct StyledSegment {
     style: Style,
 }
 
-/// Renders content with word-level diff highlighting.
+/// Renders content with word-level diff highlighting for unified display.
 ///
-/// When both `old_content` and `new_content` are provided (a changed line that has a pair),
-/// we use `similar::TextDiff::from_words` to compute word-level changes.
-///
-/// For left side (is_left=true): highlight Delete words with word_removed style
-/// For right side (is_left=false): highlight Insert words with word_added style
+/// When `paired_content` is provided, uses `similar::TextDiff::from_words` to
+/// compute word-level changes. For Removed lines, highlights deleted words.
+/// For Added lines, highlights inserted words.
 fn render_content_with_word_diff(
     content: &str,
     paired_content: Option<&str>,
     kind: &DiffLineKind,
-    is_left: bool,
 ) -> Vec<StyledSegment> {
     let base_style = match kind {
         DiffLineKind::Added => Theme::diff_added(),
@@ -178,7 +175,6 @@ fn render_content_with_word_diff(
         DiffLineKind::Context => Theme::diff_context(),
     };
 
-    // If there's no paired content (no word-level diff possible), return simple styled content
     let paired = match paired_content {
         Some(p) => p,
         None => {
@@ -189,7 +185,6 @@ fn render_content_with_word_diff(
         }
     };
 
-    // Only do word-level diff for changed lines
     if matches!(kind, DiffLineKind::Context) {
         return vec![StyledSegment {
             text: content.to_string(),
@@ -197,7 +192,8 @@ fn render_content_with_word_diff(
         }];
     }
 
-    let (old, new) = if is_left {
+    let is_removed = matches!(kind, DiffLineKind::Removed);
+    let (old, new) = if is_removed {
         (content, paired)
     } else {
         (paired, content)
@@ -209,37 +205,26 @@ fn render_content_with_word_diff(
     for change in text_diff.iter_all_changes() {
         match change.tag() {
             ChangeTag::Equal => {
-                if is_left {
-                    // On the left side, Equal text appears in old
-                    segments.push(StyledSegment {
-                        text: change.value().to_string(),
-                        style: base_style,
-                    });
-                } else {
-                    // On the right side, Equal text appears in new
-                    segments.push(StyledSegment {
-                        text: change.value().to_string(),
-                        style: base_style,
-                    });
-                }
+                segments.push(StyledSegment {
+                    text: change.value().to_string(),
+                    style: base_style,
+                });
             }
             ChangeTag::Delete => {
-                if is_left {
+                if is_removed {
                     segments.push(StyledSegment {
                         text: change.value().to_string(),
                         style: Theme::diff_word_removed(),
                     });
                 }
-                // Skip Delete changes on the right side
             }
             ChangeTag::Insert => {
-                if !is_left {
+                if !is_removed {
                     segments.push(StyledSegment {
                         text: change.value().to_string(),
                         style: Theme::diff_word_added(),
                     });
                 }
-                // Skip Insert changes on the left side
             }
         }
     }
@@ -302,8 +287,8 @@ fn write_segments(
     }
 }
 
-impl StatefulWidget for SideBySideDiff<'_> {
-    type State = SideBySideDiffState;
+impl StatefulWidget for UnifiedDiff<'_> {
+    type State = UnifiedDiffState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         // Handle block
@@ -316,148 +301,144 @@ impl StatefulWidget for SideBySideDiff<'_> {
         };
 
         // Early return if area too small
-        if inner.width < 10 || inner.height < 2 {
+        if inner.width < 12 || inner.height < 2 {
             return;
         }
 
-        // Build all DiffRows from all files/hunks, recording hunk_offsets
-        let mut all_rows: Vec<DiffRow> = Vec::new();
+        // Build all DiffRows from all files/hunks, and expand to screen rows.
+        // Each DiffRow may produce 1 row (context or unpaired change) or
+        // 2 rows (paired removed + added).
+        struct ScreenRow {
+            line_no_old: Option<u32>,
+            line_no_new: Option<u32>,
+            content: String,
+            kind: DiffLineKind,
+            paired_content: Option<String>,
+        }
+
+        let mut screen_rows: Vec<ScreenRow> = Vec::new();
         let mut hunk_offsets: Vec<u16> = Vec::new();
 
         for file in self.diff_files {
             for hunk in &file.hunks {
-                hunk_offsets.push(all_rows.len() as u16);
-                let rows = pair_lines(hunk);
-                all_rows.extend(rows);
+                hunk_offsets.push(screen_rows.len() as u16);
+                let diff_rows = pair_lines(hunk);
+                for row in diff_rows {
+                    let has_left = row.left_content.is_some()
+                        && !matches!(row.left_kind, DiffLineKind::Context);
+                    let has_right = row.right_content.is_some()
+                        && !matches!(row.right_kind, DiffLineKind::Context);
+                    let is_paired = has_left && has_right;
+
+                    if matches!(row.left_kind, DiffLineKind::Context)
+                        && row.left_content.is_some()
+                    {
+                        // Context line: single row
+                        screen_rows.push(ScreenRow {
+                            line_no_old: row.left_line_no,
+                            line_no_new: row.right_line_no,
+                            content: row.left_content.unwrap_or_default(),
+                            kind: DiffLineKind::Context,
+                            paired_content: None,
+                        });
+                    } else {
+                        // Removed line (if present)
+                        if let Some(ref left_content) = row.left_content {
+                            screen_rows.push(ScreenRow {
+                                line_no_old: row.left_line_no,
+                                line_no_new: None,
+                                content: left_content.clone(),
+                                kind: DiffLineKind::Removed,
+                                paired_content: if is_paired {
+                                    row.right_content.clone()
+                                } else {
+                                    None
+                                },
+                            });
+                        }
+                        // Added line (if present)
+                        if let Some(ref right_content) = row.right_content {
+                            screen_rows.push(ScreenRow {
+                                line_no_old: None,
+                                line_no_new: row.right_line_no,
+                                content: right_content.clone(),
+                                kind: DiffLineKind::Added,
+                                paired_content: if is_paired {
+                                    row.left_content.clone()
+                                } else {
+                                    None
+                                },
+                            });
+                        }
+                    }
+                }
             }
         }
 
         state.hunk_offsets = hunk_offsets;
 
-        // Calculate layout
+        // Layout: [OldLN(4)] [NewLN(4)] [sep(1)] [Content]
         let line_no_width: u16 = 4;
         let separator_width: u16 = 1;
-        // Total width for one side = line_no_width + 1(space) + content_width
-        // Layout: [left_line_no(4)] [left_content] [sep(1)] [right_line_no(4)] [right_content]
-        let half_width = inner.width / 2;
-        let left_content_width = half_width.saturating_sub(line_no_width + 1); // +1 for space after line no
-        let right_start_x = inner.x + half_width + separator_width;
-        let right_content_width = inner
+        let content_x = inner.x + line_no_width + line_no_width + separator_width;
+        let content_width = inner
             .width
-            .saturating_sub(half_width + separator_width + line_no_width + 1);
+            .saturating_sub(line_no_width + line_no_width + separator_width);
 
-        // For each visible row (based on scroll_y)
         for row_idx in 0..inner.height {
             let data_idx = state.scroll_y as usize + row_idx as usize;
             let y = inner.y + row_idx;
 
-            if data_idx >= all_rows.len() {
+            if data_idx >= screen_rows.len() {
                 break;
             }
 
-            let row = &all_rows[data_idx];
+            let row = &screen_rows[data_idx];
 
-            // --- Left side ---
-            // Line number
-            let left_line_no_str = match row.left_line_no {
+            // Old line number
+            let old_ln_str = match row.line_no_old {
                 Some(n) => format!("{:>width$}", n, width = line_no_width as usize),
                 None => " ".repeat(line_no_width as usize),
             };
-            buf.set_string(inner.x, y, &left_line_no_str, Theme::diff_line_number());
+            buf.set_string(inner.x, y, &old_ln_str, Theme::diff_line_number());
 
-            // Left content
-            let left_content_x = inner.x + line_no_width + 1; // 1 space after line number
-            let left_bg_style = match row.left_kind {
-                DiffLineKind::Added => Theme::diff_added(),
-                DiffLineKind::Removed => Theme::diff_removed(),
-                DiffLineKind::Context => Theme::diff_context(),
+            // New line number
+            let new_ln_str = match row.line_no_new {
+                Some(n) => format!("{:>width$}", n, width = line_no_width as usize),
+                None => " ".repeat(line_no_width as usize),
             };
+            buf.set_string(
+                inner.x + line_no_width,
+                y,
+                &new_ln_str,
+                Theme::diff_line_number(),
+            );
 
-            if let Some(ref content) = row.left_content {
-                // Determine if we have a paired change for word-level diff
-                let paired = if matches!(row.left_kind, DiffLineKind::Removed)
-                    && matches!(row.right_kind, DiffLineKind::Added)
-                {
-                    row.right_content.as_deref()
-                } else {
-                    None
-                };
-
-                let segments =
-                    render_content_with_word_diff(content, paired, &row.left_kind, true);
-                write_segments(
-                    buf,
-                    &segments,
-                    left_content_x,
-                    y,
-                    left_content_width,
-                    state.scroll_x,
-                    left_bg_style,
-                );
-            } else {
-                // Empty side - fill with background
-                write_segments(
-                    buf,
-                    &[],
-                    left_content_x,
-                    y,
-                    left_content_width,
-                    0,
-                    Theme::diff_context(),
-                );
-            }
-
-            // --- Separator ---
-            let sep_x = inner.x + half_width;
+            // Separator
+            let sep_x = inner.x + line_no_width + line_no_width;
             buf.set_string(sep_x, y, "\u{2502}", Theme::diff_line_number());
 
-            // --- Right side ---
-            // Line number
-            let right_line_no_str = match row.right_line_no {
-                Some(n) => format!("{:>width$}", n, width = line_no_width as usize),
-                None => " ".repeat(line_no_width as usize),
-            };
-            buf.set_string(right_start_x, y, &right_line_no_str, Theme::diff_line_number());
-
-            // Right content
-            let right_content_x = right_start_x + line_no_width + 1;
-            let right_bg_style = match row.right_kind {
+            // Content
+            let bg_style = match row.kind {
                 DiffLineKind::Added => Theme::diff_added(),
                 DiffLineKind::Removed => Theme::diff_removed(),
                 DiffLineKind::Context => Theme::diff_context(),
             };
 
-            if let Some(ref content) = row.right_content {
-                let paired = if matches!(row.right_kind, DiffLineKind::Added)
-                    && matches!(row.left_kind, DiffLineKind::Removed)
-                {
-                    row.left_content.as_deref()
-                } else {
-                    None
-                };
-
-                let segments =
-                    render_content_with_word_diff(content, paired, &row.right_kind, false);
-                write_segments(
-                    buf,
-                    &segments,
-                    right_content_x,
-                    y,
-                    right_content_width,
-                    state.scroll_x,
-                    right_bg_style,
-                );
-            } else {
-                write_segments(
-                    buf,
-                    &[],
-                    right_content_x,
-                    y,
-                    right_content_width,
-                    0,
-                    Theme::diff_context(),
-                );
-            }
+            let segments = render_content_with_word_diff(
+                &row.content,
+                row.paired_content.as_deref(),
+                &row.kind,
+            );
+            write_segments(
+                buf,
+                &segments,
+                content_x,
+                y,
+                content_width,
+                state.scroll_x,
+                bg_style,
+            );
         }
     }
 }
@@ -573,10 +554,10 @@ mod tests {
                 ],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -584,7 +565,7 @@ mod tests {
 
     #[test]
     fn test_hunk_navigation() {
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         state.hunk_offsets = vec![0, 10, 25];
         state.next_hunk();
         assert_eq!(state.current_hunk, 1);
@@ -643,10 +624,10 @@ mod tests {
         let backend = TestBackend::new(60, 6);
         let mut terminal = Terminal::new(backend).unwrap();
         let diff = make_simple_diff();
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -682,10 +663,10 @@ mod tests {
                 ],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -721,10 +702,10 @@ mod tests {
                 ],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -737,11 +718,11 @@ mod tests {
         let backend = TestBackend::new(60, 4);
         let mut terminal = Terminal::new(backend).unwrap();
         let diff = make_simple_diff();
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         state.scroll_x = 4; // scroll right by 4 chars
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -754,10 +735,10 @@ mod tests {
         let backend = TestBackend::new(30, 4);
         let mut terminal = Terminal::new(backend).unwrap();
         let diff = make_simple_diff();
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -827,10 +808,10 @@ mod tests {
                 },
             ],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -872,10 +853,10 @@ mod tests {
                 ],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();
@@ -903,11 +884,11 @@ mod tests {
                 }],
             }],
         }];
-        let mut state = SideBySideDiffState::new();
+        let mut state = UnifiedDiffState::new();
         state.scroll_x = 4; // skip 2 CJK chars (4 display columns)
         terminal
             .draw(|f| {
-                let widget = SideBySideDiff::new(&diff);
+                let widget = UnifiedDiff::new(&diff);
                 f.render_stateful_widget(widget, f.area(), &mut state);
             })
             .unwrap();

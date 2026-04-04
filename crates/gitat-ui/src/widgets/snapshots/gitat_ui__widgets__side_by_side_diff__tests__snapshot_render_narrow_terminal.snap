@@ -1,8 +1,0 @@
----
-source: crates/gitat-ui/src/widgets/side_by_side_diff.rs
-assertion_line: 750
-expression: buffer_to_string(&buf)
----
-   1 fn main() │   1 fn main()
-   2     old_co│   2     new_c
-   3 }         │   3 }

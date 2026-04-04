@@ -6,7 +6,7 @@ use gitat_core::commit_detail::FileChangeStatus;
 use gitat_core::status::FileStatus;
 use crate::app::{App, Mode, Panel};
 use crate::theme::Theme;
-use crate::widgets::side_by_side_diff::SideBySideDiff;
+use crate::widgets::unified_diff::UnifiedDiff;
 
 pub fn render(f: &mut Frame, app: &mut App, area: Rect) {
     match app.mode {
@@ -331,7 +331,7 @@ fn render_commit_diff(f: &mut Frame, app: &mut App, area: Rect) {
             .title(" Diff ")
             .borders(Borders::ALL)
             .border_style(border_style);
-        let widget = SideBySideDiff::new(diff_files).block(block);
+        let widget = UnifiedDiff::new(diff_files).block(block);
         f.render_stateful_widget(widget, area, &mut app.commit_detail_diff_state);
     } else {
         let block = Block::default()
@@ -497,7 +497,7 @@ fn render_uncommitted_diff(f: &mut Frame, app: &mut App, area: Rect) {
             .title(" Diff ")
             .borders(Borders::ALL)
             .border_style(border_style);
-        let widget = SideBySideDiff::new(diff_files).block(block);
+        let widget = UnifiedDiff::new(diff_files).block(block);
         f.render_stateful_widget(widget, area, &mut app.diff_state);
     } else {
         let block = Block::default()

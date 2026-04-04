@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::{App, Mode, Panel};
-use crate::widgets::side_by_side_diff::SideBySideDiffState;
+use crate::widgets::unified_diff::UnifiedDiffState;
 use gitat_core::runner::CommandRunner;
 
 pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
@@ -45,7 +45,7 @@ pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
     app.commit_detail_files = files;
     app.commit_detail_file_state = ratatui::widgets::ListState::default();
     app.commit_detail_panel = Panel::Left;
-    app.commit_detail_diff_state = SideBySideDiffState::new();
+    app.commit_detail_diff_state = UnifiedDiffState::new();
     if !app.commit_detail_files.is_empty() {
         app.commit_detail_file_state.select(Some(0));
         load_commit_detail_diff(app, runner);
@@ -76,7 +76,7 @@ fn load_commit_detail_diff(app: &mut App, runner: &dyn CommandRunner) {
     ) {
         Ok(diff) => {
             app.commit_detail_diff = Some(diff);
-            app.commit_detail_diff_state = SideBySideDiffState::new();
+            app.commit_detail_diff_state = UnifiedDiffState::new();
         }
         Err(e) => {
             app.set_status_message(format!("Failed to load diff: {e}"));
@@ -90,7 +90,7 @@ pub(super) fn handle_commit_detail(app: &mut App, key: KeyEvent, runner: &dyn Co
             app.mode = Mode::Normal;
             // Reset interactive state only; keep data for preview
             app.commit_detail_file_state = ratatui::widgets::ListState::default();
-            app.commit_detail_diff_state = SideBySideDiffState::new();
+            app.commit_detail_diff_state = UnifiedDiffState::new();
         }
         KeyCode::Char('q') => {
             app.should_quit = true;

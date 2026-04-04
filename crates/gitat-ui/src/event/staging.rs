@@ -1,5 +1,5 @@
 use crate::app::{App, Mode};
-use crate::widgets::side_by_side_diff::SideBySideDiffState;
+use crate::widgets::unified_diff::UnifiedDiffState;
 use gitat_core::runner::CommandRunner;
 
 fn selected_status_index(app: &App) -> Option<usize> {
@@ -72,7 +72,7 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
                 Ok(diff) => {
                     if diff.is_empty() || diff.iter().all(|f| f.hunks.is_empty()) {
                         app.current_diff = None;
-                        app.diff_state = SideBySideDiffState::new();
+                        app.diff_state = UnifiedDiffState::new();
                     } else {
                         // Clamp current_hunk
                         let total_hunks: usize = diff.iter().map(|f| f.hunks.len()).sum();
@@ -85,7 +85,7 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
                 Err(e) => {
                     app.set_status_message(format!("Failed to reload diff: {e}"));
                     app.current_diff = None;
-                    app.diff_state = SideBySideDiffState::new();
+                    app.diff_state = UnifiedDiffState::new();
                 }
             }
         }

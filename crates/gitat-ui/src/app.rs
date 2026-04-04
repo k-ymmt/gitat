@@ -10,7 +10,7 @@ use gitat_core::status::StatusEntry;
 use ratatui::widgets::ListState;
 
 use crate::widgets::conflict_editor::ConflictEditorState;
-use crate::widgets::side_by_side_diff::SideBySideDiffState;
+use crate::widgets::unified_diff::UnifiedDiffState;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Tab {
@@ -70,7 +70,7 @@ pub struct App {
     pub uncommitted_list_state: ListState,
     pub log_list_state: ListState,
     pub branches_list_state: ListState,
-    pub diff_state: SideBySideDiffState,
+    pub diff_state: UnifiedDiffState,
     pub status: Vec<StatusEntry>,
     pub branches: Vec<BranchInfo>,
     pub log_entries: Vec<CommitInfo>,
@@ -84,7 +84,7 @@ pub struct App {
     pub commit_detail_file_state: ListState,
     pub commit_detail_panel: Panel,
     pub commit_detail_diff: Option<Vec<DiffFile>>,
-    pub commit_detail_diff_state: SideBySideDiffState,
+    pub commit_detail_diff_state: UnifiedDiffState,
     pub return_to_uncommitted_detail: bool,
 }
 
@@ -98,7 +98,7 @@ impl App {
             uncommitted_list_state: ListState::default(),
             log_list_state: ListState::default(),
             branches_list_state: ListState::default(),
-            diff_state: SideBySideDiffState::new(),
+            diff_state: UnifiedDiffState::new(),
             status: Vec::new(),
             branches: Vec::new(),
             log_entries: Vec::new(),
@@ -112,7 +112,7 @@ impl App {
             commit_detail_file_state: ListState::default(),
             commit_detail_panel: Panel::Left,
             commit_detail_diff: None,
-            commit_detail_diff_state: SideBySideDiffState::new(),
+            commit_detail_diff_state: UnifiedDiffState::new(),
             return_to_uncommitted_detail: false,
         }
     }

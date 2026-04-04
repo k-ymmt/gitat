@@ -35,6 +35,13 @@
 - [ ] `assert_yaml_snapshot!` への移行検討（serde を dev-dep に追加してスナップショットの可読性向上）
 - [ ] `cargo-insta` CLI 導入（`cargo insta review` による対話的スナップショット承認）
 
+## ファイルシステム監視の改善
+
+- [ ] `.gitignore` ベースのパスフィルタリング — `notify` は `.gitignore` を認識しないため `node_modules/`, `target/` 等の変更でもイベントが発火する。`ignore` クレート等でフィルタリングを追加すれば不要な `git status` 実行を削減できる
+- [ ] gitat 自身の操作後の冗長リフレッシュ抑制 — stage/commit 等の操作直後に `app.refresh()` と fs watcher からの `refresh_status_and_log()` が二重に走る。短いクールダウンフラグで抑制可能
+- [ ] `spawn_blocking` の `JoinHandle` 保持 — 現在は戻り値を捨てている。将来的なグレースフルシャットダウン対応のため保持を検討
+- [ ] ブランチ変更の自動監視 — 現在 `refresh_status_and_log()` は `branches` を更新しない。`.git/refs/heads/` や `.git/HEAD` の変更時にブランチも更新する拡張
+
 ## Post-MVP
 
 - [ ] Interactive rebase UI
@@ -42,4 +49,4 @@
 - [ ] Git submodule サポート
 - [ ] 設定ファイル / カスタムキーバインド
 - [ ] Diff のシンタックスハイライト
-- [ ] 非同期 git コマンド実行（長時間操作をバックグラウンドスレッドに移動）
+- [ ] 非同期 git コマンド実行（長時間操作をバックグラウンドスレッドに移動）— メインイベントループは tokio 化済み。git コマンド自体のバックグラウンド実行が残

@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::{App, Mode, Panel};
-use crate::widgets::side_by_side_diff::SideBySideDiffState;
+use crate::widgets::unified_diff::UnifiedDiffState;
 use gitat_core::runner::CommandRunner;
 
 pub(super) fn load_uncommitted_preview(_app: &mut App, _runner: &dyn CommandRunner) {
@@ -12,7 +12,7 @@ pub(super) fn load_uncommitted_preview(_app: &mut App, _runner: &dyn CommandRunn
 pub(super) fn enter_uncommitted_detail(app: &mut App, runner: &dyn CommandRunner) {
     app.uncommitted_list_state = ratatui::widgets::ListState::default();
     app.panel = Panel::Left;
-    app.diff_state = SideBySideDiffState::new();
+    app.diff_state = UnifiedDiffState::new();
     app.current_diff = None;
 
     if !app.status.is_empty() {
@@ -36,7 +36,7 @@ fn load_uncommitted_diff(app: &mut App, runner: &dyn CommandRunner) {
     match gitat_core::diff::get_diff_for_file(runner, &entry.path, staged) {
         Ok(diff) => {
             app.current_diff = Some(diff);
-            app.diff_state = SideBySideDiffState::new();
+            app.diff_state = UnifiedDiffState::new();
         }
         Err(e) => {
             app.set_status_message(format!("Failed to load diff: {e}"));
@@ -53,7 +53,7 @@ pub(super) fn handle_uncommitted_detail(
         KeyCode::Esc => {
             app.mode = Mode::Normal;
             // Reset interactive state only; keep diff data for preview
-            app.diff_state = SideBySideDiffState::new();
+            app.diff_state = UnifiedDiffState::new();
         }
         KeyCode::Char('q') => {
             app.should_quit = true;
