@@ -19,11 +19,18 @@
 - [ ] リネーム時の旧パス情報を保持 — `CommitFileEntry` に `old_path: Option<String>` を追加し「旧名 → 新名」表示を可能にする
 - [ ] j/k ナビゲーション時の不要な diff リロードを回避 — 選択が変わらない場合はスキップする最適化
 
+## Log プレビューパネルの改善
+
+- [ ] プレビューデータのキャッシュ — カーソル移動のたびに git コマンドを実行しており、大きなリポジトリで遅延の可能性がある。コミットハッシュベースのキャッシュを検討
+- [ ] プレビューローダーのエラー時の状態クリア — `load_commit_preview` / `load_uncommitted_preview` で git コマンドが失敗した場合、古いプレビューデータが残り続ける。エラー時に `commit_detail_*` / `current_diff` をクリアすべき
+- [ ] `load_commit_preview` と `enter_commit_detail` の重複ロジックの共通化 — コミット取得→ファイルリスト取得のパターンが `commit_detail.rs` 内で重複している。共通ヘルパーに抽出可能だがエラーハンドリングの差異（プレビューは静かにリターン、フルスクリーンは status_message を表示）に注意
+
 ## テスト
 
 - [ ] 統合テスト: ステージング後の diff 読み込み、タブ切り替え時の状態保持
 - [ ] ビュー全体のスナップショットテスト（`views/log` の UncommittedDetail、`views/branches` の複合レイアウト）
 - [ ] コミット詳細画面のスナップショットテスト（メタデータ + ファイル一覧 + diff パネルのレイアウト）
+- [ ] Log プレビューパネルのスナップショットテスト（commit preview / uncommitted preview の描画）
 - [ ] コミット成功後に `Mode::UncommittedDetail` に戻ることの確認テスト
 - [ ] `assert_yaml_snapshot!` への移行検討（serde を dev-dep に追加してスナップショットの可読性向上）
 - [ ] `cargo-insta` CLI 導入（`cargo insta review` による対話的スナップショット承認）
