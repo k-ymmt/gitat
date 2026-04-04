@@ -106,6 +106,7 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
             }
         }
         KeyCode::Char('/') => {
+            app.pre_search_cursor = app.log_list_state.selected();
             app.mode = Mode::Search {
                 query: String::new(),
             };
@@ -167,12 +168,22 @@ fn delete_selected_branch(app: &mut App, runner: &dyn CommandRunner) {
 #[cfg(test)]
 mod tests {
     use super::super::handle_key;
-    use crate::app::{App, Tab};
+    use crate::app::{App, Mode, Tab};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use gitat_core::runner::MockRunner;
 
     fn mock_key(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    #[test]
+    fn test_slash_saves_cursor_and_enters_search() {
+        let mut app = App::new();
+        app.log_list_state.select(Some(3));
+        let runner = MockRunner::new();
+        handle_key(&mut app, mock_key(KeyCode::Char('/')), &runner);
+        assert!(matches!(app.mode, Mode::Search { ref query } if query.is_empty()));
+        assert_eq!(app.pre_search_cursor, Some(3));
     }
 
     #[test]
