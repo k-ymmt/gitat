@@ -33,14 +33,14 @@ pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
     load_commit_preview_at(app, runner, idx);
 }
 
-pub(super) fn enter_commit_detail_at(
+pub(super) fn prepare_commit_detail(
     app: &mut App,
     runner: &dyn CommandRunner,
     log_entry_index: usize,
-) {
+) -> bool {
     let commit = match app.log_entries.get(log_entry_index) {
         Some(c) => c.clone(),
-        None => return,
+        None => return false,
     };
 
     let first_parent = commit.parent_hashes.first().map(|s| s.as_str());
@@ -49,7 +49,7 @@ pub(super) fn enter_commit_detail_at(
             Ok(f) => f,
             Err(e) => {
                 app.set_status_message(format!("Failed to load commit files: {e}"));
-                return;
+                return false;
             }
         };
 
@@ -62,7 +62,17 @@ pub(super) fn enter_commit_detail_at(
         app.commit_detail_file_state.select(Some(0));
         load_commit_detail_diff(app, runner);
     }
-    app.mode = Mode::CommitDetail;
+    true
+}
+
+pub(super) fn enter_commit_detail_at(
+    app: &mut App,
+    runner: &dyn CommandRunner,
+    log_entry_index: usize,
+) {
+    if prepare_commit_detail(app, runner, log_entry_index) {
+        app.mode = Mode::CommitDetail;
+    }
 }
 
 pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
