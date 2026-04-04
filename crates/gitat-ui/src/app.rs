@@ -137,6 +137,15 @@ impl App {
         }
     }
 
+    pub fn refresh_status_and_log(&mut self, runner: &dyn CommandRunner) {
+        if let Ok(status) = gitat_core::status::get_status(runner) {
+            self.status = status;
+        }
+        if let Ok(log) = gitat_core::log::get_log(runner, 100, None) {
+            self.log_entries = log;
+        }
+    }
+
     pub fn set_status_message(&mut self, msg: impl Into<String>) {
         self.status_message = Some(msg.into());
         self.status_message_set_at = Some(Instant::now());
@@ -202,5 +211,25 @@ mod tests {
         app.clear_expired_status_message();
         assert!(app.status_message.is_none());
         assert!(app.status_message_set_at.is_none());
+    }
+
+    #[test]
+    fn test_refresh_status_and_log_updates_status_and_log() {
+        use gitat_core::runner::MockRunner;
+
+        let runner = MockRunner::new()
+            .with_response("status --porcelain=v1", " M src/main.rs\n")
+            .with_response(
+                "log --max-count=100 --format=%H\x1f%h\x1f%P\x1f%D\x1f%an\x1f%ai\x1f%s\x1e",
+                "abc123\x1fabc\x1f\x1fHEAD -> main\x1fAuthor\x1f2026-04-04\x1fInitial commit\x1e",
+            );
+
+        let mut app = App::new();
+        app.refresh_status_and_log(&runner);
+
+        assert_eq!(app.status.len(), 1);
+        assert_eq!(app.log_entries.len(), 1);
+        // branches should remain unchanged (not refreshed)
+        assert!(app.branches.is_empty());
     }
 }
