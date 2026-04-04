@@ -117,8 +117,12 @@ fn load_commit_detail_diff(app: &mut App, runner: &dyn CommandRunner) {
 pub(super) fn handle_commit_detail(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
     match key.code {
         KeyCode::Esc => {
-            app.mode = Mode::Normal;
-            // Reset interactive state only; keep data for preview
+            app.pop_mode();
+            // If stack was empty, pop_mode is no-op, fall back to Normal
+            if matches!(app.mode, Mode::CommitDetail) {
+                app.mode = Mode::Normal;
+            }
+            // Reset interactive state; keep data for preview
             app.commit_detail_file_state = ratatui::widgets::ListState::default();
             app.commit_detail_diff_state = UnifiedDiffState::new();
         }
@@ -289,18 +293,27 @@ mod tests {
     }
 
     #[test]
-    fn test_esc_from_commit_detail_returns_to_normal() {
+    fn test_esc_from_commit_detail_returns_to_search() {
+        let mut app = App::new();
+        // Simulate: was in Search, pushed to CommitDetail
+        app.mode = Mode::CommitDetail;
+        app.mode_stack = vec![Mode::Search { query: "test".into() }];
+        app.filtered_log_indices = Some(vec![0, 2]);
+        app.pre_search_cursor = Some(5);
+
+        let runner = MockRunner::new();
+        handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
+
+        assert!(matches!(app.mode, Mode::Search { ref query } if query == "test"));
+        assert_eq!(app.filtered_log_indices, Some(vec![0, 2]));
+        assert_eq!(app.pre_search_cursor, Some(5));
+    }
+
+    #[test]
+    fn test_esc_from_commit_detail_falls_back_to_normal() {
         let mut app = App::new();
         app.mode = Mode::CommitDetail;
-        app.commit_detail_commit = Some(gitat_core::log::CommitInfo {
-            hash: "abc123".to_string(),
-            short_hash: "abc".to_string(),
-            author: "Test".to_string(),
-            date: "2026-04-04".to_string(),
-            message: "test".to_string(),
-            refs: vec![],
-            parent_hashes: vec![],
-        });
+        // Empty stack — entered from Normal mode directly
         let runner = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
         assert_eq!(app.mode, Mode::Normal);

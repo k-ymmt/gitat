@@ -106,6 +106,7 @@ fn handle_search(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
             app.filtered_log_indices = None;
             app.pre_search_cursor = None;
             app.mode = Mode::Normal;
+            app.mode_stack.clear();
         }
         KeyCode::Enter => {
             let original_index = app.log_list_state.selected().and_then(|sel| {
@@ -361,6 +362,22 @@ mod tests {
         assert_eq!(app.mode, Mode::Normal);
         assert_eq!(app.filtered_log_indices, None);
         assert_eq!(app.log_list_state.selected(), Some(5));
+    }
+
+    #[test]
+    fn test_search_esc_clears_mode_stack() {
+        let mut app = App::new();
+        app.mode = Mode::Search { query: "test".into() };
+        app.pre_search_cursor = Some(3);
+        app.filtered_log_indices = Some(vec![0]);
+        app.mode_stack = vec![Mode::Normal]; // leftover from some transition
+        let runner = MockRunner::new();
+
+        handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
+
+        assert_eq!(app.mode, Mode::Normal);
+        assert!(app.mode_stack.is_empty());
+        assert_eq!(app.filtered_log_indices, None);
     }
 
     #[test]
