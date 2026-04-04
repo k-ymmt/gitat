@@ -110,7 +110,8 @@ fn handle_search(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
         }
         KeyCode::Enter => {
             let original_index = app.log_list_state.selected().and_then(|sel| {
-                app.search.filtered_log_indices
+                app.search
+                    .filtered_log_indices
                     .as_ref()
                     .and_then(|indices| indices.get(sel).copied())
             });
@@ -121,7 +122,11 @@ fn handle_search(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
             }
         }
         KeyCode::Char('j') | KeyCode::Down => {
-            let max = app.search.filtered_log_indices.as_ref().map_or(0, |v| v.len());
+            let max = app
+                .search
+                .filtered_log_indices
+                .as_ref()
+                .map_or(0, |v| v.len());
             if max > 0 {
                 let current = app.log_list_state.selected().unwrap_or(0);
                 let next = (current + 1).min(max - 1);
@@ -315,7 +320,9 @@ mod tests {
             },
         ];
         app.search.pre_search_cursor = Some(0);
-        app.mode = Mode::Search { query: "second".into() };
+        app.mode = Mode::Search {
+            query: "second".into(),
+        };
         app.update_search_filter("second");
 
         let runner = MockRunner::new()
@@ -339,7 +346,9 @@ mod tests {
     fn test_search_enter_noop_on_empty_results() {
         let mut app = App::new();
         app.log_entries = vec![];
-        app.mode = Mode::Search { query: "nothing".into() };
+        app.mode = Mode::Search {
+            query: "nothing".into(),
+        };
         app.search.filtered_log_indices = Some(vec![]);
         app.log_list_state.select(None);
         let runner = MockRunner::new();
@@ -367,7 +376,9 @@ mod tests {
     #[test]
     fn test_search_esc_clears_mode_stack() {
         let mut app = App::new();
-        app.mode = Mode::Search { query: "test".into() };
+        app.mode = Mode::Search {
+            query: "test".into(),
+        };
         app.search.pre_search_cursor = Some(3);
         app.search.filtered_log_indices = Some(vec![0]);
         app.mode_stack = vec![Mode::Normal]; // leftover from some transition
@@ -403,7 +414,9 @@ mod tests {
                 parent_hashes: vec![],
             },
         ];
-        app.mode = Mode::Search { query: "fix".into() };
+        app.mode = Mode::Search {
+            query: "fix".into(),
+        };
         app.update_search_filter("fix");
         // filtered_log_indices = Some([0, 1]), selection = 0
         let runner = MockRunner::new();
@@ -437,7 +450,9 @@ mod tests {
                 parent_hashes: vec![],
             },
         ];
-        app.mode = Mode::Search { query: "fix".into() };
+        app.mode = Mode::Search {
+            query: "fix".into(),
+        };
         app.update_search_filter("fix");
         app.log_list_state.select(Some(1)); // start at second item
         let runner = MockRunner::new();
@@ -449,18 +464,18 @@ mod tests {
     #[test]
     fn test_search_j_clamps_at_end() {
         let mut app = App::new();
-        app.log_entries = vec![
-            gitat_core::log::CommitInfo {
-                hash: "aaa".into(),
-                short_hash: "aaa".into(),
-                author: "Alice".into(),
-                date: "2026-01-01".into(),
-                message: "fix".into(),
-                refs: vec![],
-                parent_hashes: vec![],
-            },
-        ];
-        app.mode = Mode::Search { query: "fix".into() };
+        app.log_entries = vec![gitat_core::log::CommitInfo {
+            hash: "aaa".into(),
+            short_hash: "aaa".into(),
+            author: "Alice".into(),
+            date: "2026-01-01".into(),
+            message: "fix".into(),
+            refs: vec![],
+            parent_hashes: vec![],
+        }];
+        app.mode = Mode::Search {
+            query: "fix".into(),
+        };
         app.update_search_filter("fix");
         // Only one result, selection at 0
         let runner = MockRunner::new();
@@ -472,18 +487,18 @@ mod tests {
     #[test]
     fn test_search_k_clamps_at_start() {
         let mut app = App::new();
-        app.log_entries = vec![
-            gitat_core::log::CommitInfo {
-                hash: "aaa".into(),
-                short_hash: "aaa".into(),
-                author: "Alice".into(),
-                date: "2026-01-01".into(),
-                message: "fix".into(),
-                refs: vec![],
-                parent_hashes: vec![],
-            },
-        ];
-        app.mode = Mode::Search { query: "fix".into() };
+        app.log_entries = vec![gitat_core::log::CommitInfo {
+            hash: "aaa".into(),
+            short_hash: "aaa".into(),
+            author: "Alice".into(),
+            date: "2026-01-01".into(),
+            message: "fix".into(),
+            refs: vec![],
+            parent_hashes: vec![],
+        }];
+        app.mode = Mode::Search {
+            query: "fix".into(),
+        };
         app.update_search_filter("fix");
         let runner = MockRunner::new();
 

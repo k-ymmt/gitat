@@ -71,7 +71,8 @@ pub(super) fn handle_uncommitted_detail(app: &mut App, key: KeyEvent, runner: &d
                     let current = app.uncommitted.list_state.selected().unwrap_or(0);
                     // Find next file entry (skip section headers)
                     let next = app
-                        .uncommitted.file_map
+                        .uncommitted
+                        .file_map
                         .iter()
                         .enumerate()
                         .skip(current + 1)

@@ -99,7 +99,8 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
             }
         }
         Err(e) => {
-            app.status_bar.set(format!("Stage/unstage hunk failed: {e}"));
+            app.status_bar
+                .set(format!("Stage/unstage hunk failed: {e}"));
         }
     }
 }

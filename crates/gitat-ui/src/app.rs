@@ -365,8 +365,7 @@ impl App {
         };
 
         // If current is valid and points to a file, keep it
-        if current < self.uncommitted.file_map.len()
-            && self.uncommitted.file_map[current].is_some()
+        if current < self.uncommitted.file_map.len() && self.uncommitted.file_map[current].is_some()
         {
             return;
         }
@@ -380,8 +379,7 @@ impl App {
             .skip(current)
             .find(|(_, x)| x.is_some())
             .map(|(i, _)| i);
-        let backward = self.uncommitted.file_map
-            [..current.min(self.uncommitted.file_map.len())]
+        let backward = self.uncommitted.file_map[..current.min(self.uncommitted.file_map.len())]
             .iter()
             .rposition(|x| x.is_some());
 
@@ -408,7 +406,6 @@ impl App {
         self.search.filtered_log_indices = Some(indices);
         self.log_list_state.select(Some(0));
     }
-
 }
 
 impl Default for App {
@@ -526,7 +523,9 @@ mod tests {
     fn test_push_mode_saves_current_to_stack() {
         let mut app = App::new();
         assert_eq!(app.mode, Mode::Normal);
-        app.push_mode(Mode::Search { query: "test".into() });
+        app.push_mode(Mode::Search {
+            query: "test".into(),
+        });
         assert!(matches!(app.mode, Mode::Search { ref query } if query == "test"));
         assert_eq!(app.mode_stack.len(), 1);
         assert_eq!(app.mode_stack[0], Mode::Normal);
@@ -535,7 +534,9 @@ mod tests {
     #[test]
     fn test_pop_mode_restores_previous() {
         let mut app = App::new();
-        app.push_mode(Mode::Search { query: "test".into() });
+        app.push_mode(Mode::Search {
+            query: "test".into(),
+        });
         app.push_mode(Mode::CommitDetail);
         assert_eq!(app.mode, Mode::CommitDetail);
         app.pop_mode();

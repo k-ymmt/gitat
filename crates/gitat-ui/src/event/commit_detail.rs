@@ -48,7 +48,8 @@ pub(super) fn prepare_commit_detail(
         match gitat_core::commit_detail::get_commit_files(runner, &commit.hash, first_parent) {
             Ok(f) => f,
             Err(e) => {
-                app.status_bar.set(format!("Failed to load commit files: {e}"));
+                app.status_bar
+                    .set(format!("Failed to load commit files: {e}"));
                 return false;
             }
         };
@@ -297,7 +298,9 @@ mod tests {
         let mut app = App::new();
         // Simulate: was in Search, pushed to CommitDetail
         app.mode = Mode::CommitDetail;
-        app.mode_stack = vec![Mode::Search { query: "test".into() }];
+        app.mode_stack = vec![Mode::Search {
+            query: "test".into(),
+        }];
         app.search.filtered_log_indices = Some(vec![0, 2]);
         app.search.pre_search_cursor = Some(5);
 

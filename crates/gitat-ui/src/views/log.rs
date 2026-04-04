@@ -10,6 +10,11 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
+const LOG_LIST_PERCENT: u16 = 60;
+const PREVIEW_PERCENT: u16 = 40;
+const FILE_LIST_PERCENT: u16 = 30;
+const DIFF_PANEL_PERCENT: u16 = 70;
+
 pub fn render(f: &mut Frame, app: &mut App, area: Rect) {
     match app.mode {
         Mode::CommitDetail => render_commit_detail(f, app, area),
@@ -37,7 +42,10 @@ fn render_log_list(f: &mut Frame, app: &mut App, area: Rect) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .constraints([
+            Constraint::Percentage(LOG_LIST_PERCENT),
+            Constraint::Percentage(PREVIEW_PERCENT),
+        ])
         .split(main_area);
 
     render_log_list_items(f, app, chunks[0]);
@@ -208,7 +216,8 @@ fn render_commit_preview(f: &mut Frame, app: &mut App, area: Rect) {
 
     // File list (full width)
     let items: Vec<ListItem> = app
-        .commit_detail.files
+        .commit_detail
+        .files
         .iter()
         .map(|entry| {
             let (code, style) = match entry.status {
@@ -300,7 +309,10 @@ fn render_commit_detail(f: &mut Frame, app: &mut App, area: Rect) {
     // Two panels
     let panels = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+        .constraints([
+            Constraint::Percentage(FILE_LIST_PERCENT),
+            Constraint::Percentage(DIFF_PANEL_PERCENT),
+        ])
         .split(chunks[1]);
 
     render_file_list(f, app, panels[0]);
@@ -322,7 +334,8 @@ fn render_file_list(f: &mut Frame, app: &mut App, area: Rect) {
     };
 
     let items: Vec<ListItem> = app
-        .commit_detail.files
+        .commit_detail
+        .files
         .iter()
         .map(|entry| {
             let (code, style) = match entry.status {
@@ -374,7 +387,10 @@ fn render_uncommitted_detail(f: &mut Frame, app: &mut App, area: Rect) {
     // Two panels
     let panels = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+        .constraints([
+            Constraint::Percentage(FILE_LIST_PERCENT),
+            Constraint::Percentage(DIFF_PANEL_PERCENT),
+        ])
         .split(chunks[1]);
 
     render_uncommitted_file_list(f, app, panels[0]);
@@ -481,18 +497,15 @@ fn render_diff_panel(
         Theme::border()
     };
 
+    let block = Block::default()
+        .title(" Diff ")
+        .borders(Borders::ALL)
+        .border_style(border_style);
+
     if let Some(diff_files) = diff {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(border_style);
         let widget = UnifiedDiff::new(diff_files).block(block);
         f.render_stateful_widget(widget, area, diff_state);
     } else {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(border_style);
         let placeholder = Paragraph::new("Select a file to view diff")
             .block(block)
             .style(Theme::diff_context());
@@ -521,4 +534,3 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
 
     f.render_stateful_widget(list, area, &mut app.uncommitted.list_state);
 }
-

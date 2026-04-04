@@ -150,7 +150,8 @@ fn delete_selected_branch(app: &mut App, runner: &dyn CommandRunner) {
     match gitat_core::branch::delete_branch(runner, &branch.name) {
         Ok(()) => {
             app.refresh(runner);
-            app.status_bar.set(format!("Deleted branch '{}'", branch.name));
+            app.status_bar
+                .set(format!("Deleted branch '{}'", branch.name));
         }
         Err(e) => {
             app.status_bar.set(format!("Delete branch failed: {e}"));

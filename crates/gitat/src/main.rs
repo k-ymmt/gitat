@@ -120,7 +120,8 @@ async fn run_app(
 
             // Conflict editor overlay
             if matches!(app.mode, Mode::Conflict { .. })
-                && let (Some(file), Some(state)) = (&app.conflict.file, &mut app.conflict.editor_state)
+                && let (Some(file), Some(state)) =
+                    (&app.conflict.file, &mut app.conflict.editor_state)
             {
                 let editor = gitat_ui::widgets::conflict_editor::ConflictEditor::new(file);
                 f.render_stateful_widget(editor, chunks[1], state);
