@@ -18,105 +18,164 @@ pub fn render(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_log_list(f: &mut Frame, app: &mut App, area: Rect) {
+    let is_searching = matches!(app.mode, Mode::Search { .. });
+
+    let outer_chunks = if is_searching {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(1)])
+            .split(area)
+    } else {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0)])
+            .split(area)
+    };
+
+    let main_area = outer_chunks[0];
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-        .split(area);
+        .split(main_area);
 
     render_log_list_items(f, app, chunks[0]);
 
     match app.log_list_state.selected() {
-        Some(0) => render_uncommitted_preview(f, app, chunks[1]),
+        Some(0) if app.filtered_log_indices.is_none() => {
+            render_uncommitted_preview(f, app, chunks[1]);
+        }
         Some(_) => render_commit_preview(f, app, chunks[1]),
         None => {}
+    }
+
+    // Search bar
+    if is_searching
+        && let Mode::Search { ref query } = app.mode
+    {
+        let search_text = format!("/{query}_");
+        let search_bar = Paragraph::new(search_text).style(Theme::status_bar());
+        f.render_widget(search_bar, outer_chunks[1]);
     }
 }
 
 fn render_log_list_items(f: &mut Frame, app: &mut App, area: Rect) {
-    let mut items: Vec<ListItem> = Vec::new();
-
-    // Build graph for all log entries
-    let graph_rows = graph::build_graph(&app.log_entries);
-
-    // Uncommitted changes item (always at index 0)
-    let staged_count = app.status.iter().filter(|e| e.is_staged()).count();
-    let unstaged_count = app.status.iter().filter(|e| {
-        !e.is_staged() && e.worktree_status != FileStatus::Untracked
-    }).count();
-    let untracked_count = app.status.iter().filter(|e| {
-        e.index_status == FileStatus::Untracked
-    }).count();
-    let total_changes = staged_count + unstaged_count + untracked_count;
-
-    // Graph prefix for uncommitted changes: '*' if changes exist, '|' otherwise
-    let mut uncommitted_spans: Vec<Span> = Vec::new();
-    if let Some(first_row) = graph_rows.first() {
-        if total_changes > 0 {
-            uncommitted_spans.push(Span::styled("* ", Theme::graph_color(0)));
-            for cell in first_row.cells.iter().skip(1) {
-                if cell.symbol != ' ' {
-                    uncommitted_spans.push(Span::styled("| ", Theme::graph_color(cell.color_index)));
-                } else {
-                    uncommitted_spans.push(Span::raw("  "));
+    let items: Vec<ListItem> = if let Some(ref indices) = app.filtered_log_indices {
+        // Filtered mode: show only matching commits, no graph, no uncommitted row
+        indices
+            .iter()
+            .map(|&i| {
+                let c = &app.log_entries[i];
+                let mut spans: Vec<Span> = Vec::new();
+                spans.push(Span::styled(&c.short_hash, Theme::commit_hash()));
+                spans.push(Span::raw(" "));
+                if !c.refs.is_empty() {
+                    spans.push(Span::styled(
+                        format!("({}) ", c.refs.join(", ")),
+                        Theme::commit_ref(),
+                    ));
                 }
-            }
-        } else {
-            for cell in &first_row.cells {
-                if cell.symbol != ' ' {
-                    uncommitted_spans.push(Span::styled("| ", Theme::graph_color(cell.color_index)));
-                } else {
-                    uncommitted_spans.push(Span::raw("  "));
-                }
-            }
-        }
-    } else if total_changes > 0 {
-        uncommitted_spans.push(Span::styled("* ", Theme::graph_color(0)));
-    }
-
-    if total_changes > 0 {
-        uncommitted_spans.extend([
-            Span::styled("● ", Theme::border_focused()),
-            Span::styled("Uncommitted Changes", Theme::border_focused()),
-            Span::styled(
-                format!(" — {} staged, {} unstaged", staged_count, unstaged_count + untracked_count),
-                Theme::diff_context(),
-            ),
-        ]);
+                spans.push(Span::raw(&c.message));
+                ListItem::new(Line::from(spans))
+            })
+            .collect()
     } else {
-        uncommitted_spans.extend([
-            Span::styled("● ", Theme::border_focused()),
-            Span::styled("Uncommitted Changes", Theme::border_focused()),
-        ]);
-    }
-    items.push(ListItem::new(Line::from(uncommitted_spans)));
+        // Normal mode: full rendering with graph and uncommitted row
+        let mut items: Vec<ListItem> = Vec::new();
+        let graph_rows = graph::build_graph(&app.log_entries);
 
-    // Log entries with graph (index 1..N)
-    for (i, c) in app.log_entries.iter().enumerate() {
-        let mut spans: Vec<Span> = Vec::new();
+        // Uncommitted changes item (always at index 0)
+        let staged_count = app.status.iter().filter(|e| e.is_staged()).count();
+        let unstaged_count = app
+            .status
+            .iter()
+            .filter(|e| !e.is_staged() && e.worktree_status != FileStatus::Untracked)
+            .count();
+        let untracked_count = app
+            .status
+            .iter()
+            .filter(|e| e.index_status == FileStatus::Untracked)
+            .count();
+        let total_changes = staged_count + unstaged_count + untracked_count;
 
-        // Graph prefix
-        if let Some(row) = graph_rows.get(i) {
-            for cell in &row.cells {
-                let s = format!("{} ", cell.symbol);
-                spans.push(Span::styled(s, Theme::graph_color(cell.color_index)));
+        let mut uncommitted_spans: Vec<Span> = Vec::new();
+        if let Some(first_row) = graph_rows.first() {
+            if total_changes > 0 {
+                uncommitted_spans.push(Span::styled("* ", Theme::graph_color(0)));
+                for cell in first_row.cells.iter().skip(1) {
+                    if cell.symbol != ' ' {
+                        uncommitted_spans
+                            .push(Span::styled("| ", Theme::graph_color(cell.color_index)));
+                    } else {
+                        uncommitted_spans.push(Span::raw("  "));
+                    }
+                }
+            } else {
+                for cell in &first_row.cells {
+                    if cell.symbol != ' ' {
+                        uncommitted_spans
+                            .push(Span::styled("| ", Theme::graph_color(cell.color_index)));
+                    } else {
+                        uncommitted_spans.push(Span::raw("  "));
+                    }
+                }
             }
+        } else if total_changes > 0 {
+            uncommitted_spans.push(Span::styled("* ", Theme::graph_color(0)));
         }
 
-        // Commit info
-        spans.push(Span::styled(&c.short_hash, Theme::commit_hash()));
-        spans.push(Span::raw(" "));
-        if !c.refs.is_empty() {
-            spans.push(Span::styled(
-                format!("({}) ", c.refs.join(", ")),
-                Theme::commit_ref(),
-            ));
+        if total_changes > 0 {
+            uncommitted_spans.extend([
+                Span::styled("● ", Theme::border_focused()),
+                Span::styled("Uncommitted Changes", Theme::border_focused()),
+                Span::styled(
+                    format!(
+                        " — {} staged, {} unstaged",
+                        staged_count,
+                        unstaged_count + untracked_count
+                    ),
+                    Theme::diff_context(),
+                ),
+            ]);
+        } else {
+            uncommitted_spans.extend([
+                Span::styled("● ", Theme::border_focused()),
+                Span::styled("Uncommitted Changes", Theme::border_focused()),
+            ]);
         }
-        spans.push(Span::raw(&c.message));
-        items.push(ListItem::new(Line::from(spans)));
-    }
+        items.push(ListItem::new(Line::from(uncommitted_spans)));
+
+        for (i, c) in app.log_entries.iter().enumerate() {
+            let mut spans: Vec<Span> = Vec::new();
+            if let Some(row) = graph_rows.get(i) {
+                for cell in &row.cells {
+                    let s = format!("{} ", cell.symbol);
+                    spans.push(Span::styled(s, Theme::graph_color(cell.color_index)));
+                }
+            }
+            spans.push(Span::styled(&c.short_hash, Theme::commit_hash()));
+            spans.push(Span::raw(" "));
+            if !c.refs.is_empty() {
+                spans.push(Span::styled(
+                    format!("({}) ", c.refs.join(", ")),
+                    Theme::commit_ref(),
+                ));
+            }
+            spans.push(Span::raw(&c.message));
+            items.push(ListItem::new(Line::from(spans)));
+        }
+
+        items
+    };
+
+    let title = if app.filtered_log_indices.is_some() {
+        " Log (filtered) "
+    } else {
+        " Log "
+    };
 
     let block = Block::default()
-        .title(" Log ")
+        .title(title)
         .borders(Borders::ALL)
         .border_style(Theme::border());
 
