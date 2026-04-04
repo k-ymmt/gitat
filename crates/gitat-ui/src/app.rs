@@ -143,11 +143,11 @@ impl App {
     }
 
     pub fn clear_expired_status_message(&mut self) {
-        if let Some(set_at) = self.status_message_set_at {
-            if set_at.elapsed() > Duration::from_secs(3) {
-                self.status_message = None;
-                self.status_message_set_at = None;
-            }
+        if let Some(set_at) = self.status_message_set_at
+            && set_at.elapsed() > Duration::from_secs(3)
+        {
+            self.status_message = None;
+            self.status_message_set_at = None;
         }
     }
 }
