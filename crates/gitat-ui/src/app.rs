@@ -89,6 +89,11 @@ pub struct App {
     /// Maps visual list index to (status_index, is_in_staged_section).
     /// None for section headers.
     pub uncommitted_file_map: Vec<Option<(usize, bool)>>,
+    /// Original cursor position before entering search mode, for Esc restoration.
+    pub pre_search_cursor: Option<usize>,
+    /// Indices into `log_entries` matching the current search query.
+    /// `None` = no filter (normal display). `Some(vec)` = filtered view.
+    pub filtered_log_indices: Option<Vec<usize>>,
 }
 
 impl App {
@@ -118,6 +123,8 @@ impl App {
             commit_detail_diff_state: UnifiedDiffState::new(),
             return_to_uncommitted_detail: false,
             uncommitted_file_map: Vec::new(),
+            pre_search_cursor: None,
+            filtered_log_indices: None,
         }
     }
 
@@ -314,6 +321,13 @@ mod tests {
         app.clear_expired_status_message();
         assert!(app.status_message.is_none());
         assert!(app.status_message_set_at.is_none());
+    }
+
+    #[test]
+    fn test_app_search_fields_initial_state() {
+        let app = App::new();
+        assert_eq!(app.pre_search_cursor, None);
+        assert_eq!(app.filtered_log_indices, None);
     }
 
     #[test]
