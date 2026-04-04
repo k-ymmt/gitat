@@ -140,6 +140,30 @@ fn list_len(app: &App) -> usize {
     }
 }
 
+fn delete_selected_branch(app: &mut App, runner: &dyn CommandRunner) {
+    let idx = match app.branches_list_state.selected() {
+        Some(i) => i,
+        None => return,
+    };
+    let branch = match app.branches.get(idx) {
+        Some(b) => b.clone(),
+        None => return,
+    };
+    if branch.is_current {
+        app.set_status_message("Cannot delete current branch");
+        return;
+    }
+    match gitat_core::branch::delete_branch(runner, &branch.name) {
+        Ok(()) => {
+            app.refresh(runner);
+            app.set_status_message(format!("Deleted branch '{}'", branch.name));
+        }
+        Err(e) => {
+            app.set_status_message(format!("Delete branch failed: {e}"));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::handle_key;
@@ -181,29 +205,5 @@ mod tests {
         assert_eq!(app.log_list_state.selected(), Some(1));
         assert!(app.commit_detail_commit.is_some());
         assert_eq!(app.commit_detail_files.len(), 1);
-    }
-}
-
-fn delete_selected_branch(app: &mut App, runner: &dyn CommandRunner) {
-    let idx = match app.branches_list_state.selected() {
-        Some(i) => i,
-        None => return,
-    };
-    let branch = match app.branches.get(idx) {
-        Some(b) => b.clone(),
-        None => return,
-    };
-    if branch.is_current {
-        app.set_status_message("Cannot delete current branch");
-        return;
-    }
-    match gitat_core::branch::delete_branch(runner, &branch.name) {
-        Ok(()) => {
-            app.refresh(runner);
-            app.set_status_message(format!("Deleted branch '{}'", branch.name));
-        }
-        Err(e) => {
-            app.set_status_message(format!("Delete branch failed: {e}"));
-        }
     }
 }
