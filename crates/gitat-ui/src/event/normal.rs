@@ -49,12 +49,18 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
                 };
                 state.select(Some(i));
             }
+            if app.tab == Tab::Log {
+                super::load_log_preview(app, runner);
+            }
         }
         KeyCode::Char('k') | KeyCode::Up => {
             let state = app.current_list_state_mut();
             if let Some(i) = state.selected() {
                 let next = if i == 0 { 0 } else { i - 1 };
                 state.select(Some(next));
+            }
+            if app.tab == Tab::Log {
+                super::load_log_preview(app, runner);
             }
         }
         KeyCode::Char('s') => {
@@ -131,6 +137,50 @@ fn list_len(app: &App) -> usize {
         Tab::Branches => app.branches.len(),
         Tab::Log => 1 + app.log_entries.len(),
         Tab::Stash => 0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::handle_key;
+    use crate::app::{App, Tab};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use gitat_core::runner::MockRunner;
+
+    fn mock_key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    #[test]
+    fn test_j_on_log_tab_loads_commit_preview() {
+        let mut app = App::new();
+        app.tab = Tab::Log;
+        app.log_entries = vec![gitat_core::log::CommitInfo {
+            hash: "abc123".to_string(),
+            short_hash: "abc".to_string(),
+            author: "Test".to_string(),
+            date: "2026-04-04".to_string(),
+            message: "test commit".to_string(),
+            refs: vec![],
+            parent_hashes: vec!["parent1".to_string()],
+        }];
+        // No selection yet; first j press selects index 0 (uncommitted)
+        let runner = MockRunner::new();
+        handle_key(&mut app, mock_key(KeyCode::Char('j')), &runner);
+        assert_eq!(app.log_list_state.selected(), Some(0));
+
+        // Second j press selects index 1 (first commit) and loads preview
+        let runner = MockRunner::new()
+            .with_response(
+                "diff-tree --no-commit-id -r --name-status abc123",
+                "M\tsrc/main.rs\n",
+            )
+            .with_response("diff parent1..abc123 -- src/main.rs", "");
+
+        handle_key(&mut app, mock_key(KeyCode::Char('j')), &runner);
+        assert_eq!(app.log_list_state.selected(), Some(1));
+        assert!(app.commit_detail_commit.is_some());
+        assert_eq!(app.commit_detail_files.len(), 1);
     }
 }
 

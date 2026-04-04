@@ -28,6 +28,8 @@ fn main() -> Result<()> {
     let mut terminal = ratatui::init();
     let mut app = App::new();
     app.refresh(&runner);
+    app.log_list_state.select(Some(0));
+    gitat_ui::event::load_log_preview(&mut app, &runner);
 
     let result = run_app(&mut terminal, &mut app, &runner);
 
