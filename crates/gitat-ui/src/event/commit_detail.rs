@@ -14,7 +14,8 @@ pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
         None => return,
     };
 
-    let files = match gitat_core::commit_detail::get_commit_files(runner, &commit.hash) {
+    let first_parent = commit.parent_hashes.first().map(|s| s.as_str());
+    let files = match gitat_core::commit_detail::get_commit_files(runner, &commit.hash, first_parent) {
         Ok(f) => f,
         Err(_) => return,
     };
@@ -33,7 +34,8 @@ pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
         None => return,
     };
 
-    let files = match gitat_core::commit_detail::get_commit_files(runner, &commit.hash) {
+    let first_parent = commit.parent_hashes.first().map(|s| s.as_str());
+    let files = match gitat_core::commit_detail::get_commit_files(runner, &commit.hash, first_parent) {
         Ok(f) => f,
         Err(e) => {
             app.set_status_message(format!("Failed to load commit files: {e}"));
@@ -178,7 +180,7 @@ mod tests {
 
         let runner = MockRunner::new()
             .with_response(
-                "diff-tree --no-commit-id -r --name-status abc123",
+                "diff-tree --no-commit-id -r --name-status parent1 abc123",
                 "M\tsrc/main.rs\n",
             );
 
@@ -206,7 +208,7 @@ mod tests {
 
         let runner = MockRunner::new()
             .with_response(
-                "diff-tree --no-commit-id -r --name-status abc123",
+                "diff-tree --no-commit-id -r --name-status parent1 abc123",
                 "M\tsrc/main.rs\n",
             )
             .with_response("diff parent1..abc123 -- src/main.rs", "");

@@ -196,7 +196,7 @@ mod tests {
         // Second j press selects index 1 (first commit) and loads preview
         let runner = MockRunner::new()
             .with_response(
-                "diff-tree --no-commit-id -r --name-status abc123",
+                "diff-tree --no-commit-id -r --name-status parent1 abc123",
                 "M\tsrc/main.rs\n",
             );
 

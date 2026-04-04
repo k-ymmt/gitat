@@ -225,7 +225,7 @@ mod tests {
 
         let runner = MockRunner::new()
             .with_response(
-                "diff-tree --no-commit-id -r --name-status abc123",
+                "diff-tree --no-commit-id -r --name-status parent1 abc123",
                 "M\tsrc/main.rs\n",
             )
             .with_response("diff parent1..abc123 -- src/main.rs", "");

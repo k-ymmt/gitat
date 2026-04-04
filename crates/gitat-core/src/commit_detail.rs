@@ -47,8 +47,13 @@ pub fn parse_commit_files(output: &str) -> Result<Vec<CommitFileEntry>, GitError
 pub fn get_commit_files(
     runner: &dyn CommandRunner,
     hash: &str,
+    first_parent: Option<&str>,
 ) -> Result<Vec<CommitFileEntry>, GitError> {
-    let output = runner.run(&["diff-tree", "--no-commit-id", "-r", "--name-status", hash])?;
+    let output = if let Some(parent) = first_parent {
+        runner.run(&["diff-tree", "--no-commit-id", "-r", "--name-status", parent, hash])?
+    } else {
+        runner.run(&["diff-tree", "--no-commit-id", "-r", "--name-status", hash])?
+    };
     parse_commit_files(&output)
 }
 
@@ -122,7 +127,20 @@ mod tests {
                 "diff-tree --no-commit-id -r --name-status abc123",
                 "M\tsrc/main.rs\nA\tsrc/new.rs\n",
             );
-        let result = get_commit_files(&runner, "abc123").unwrap();
+        let result = get_commit_files(&runner, "abc123", None).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].path, "src/main.rs");
+        assert_eq!(result[1].path, "src/new.rs");
+    }
+
+    #[test]
+    fn test_get_commit_files_merge_commit() {
+        let runner = crate::runner::MockRunner::new()
+            .with_response(
+                "diff-tree --no-commit-id -r --name-status parent1 merge123",
+                "M\tsrc/main.rs\nA\tsrc/new.rs\n",
+            );
+        let result = get_commit_files(&runner, "merge123", Some("parent1")).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].path, "src/main.rs");
         assert_eq!(result[1].path, "src/new.rs");
