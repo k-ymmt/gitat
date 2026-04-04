@@ -1,7 +1,8 @@
 use crate::app::{App, Mode, Panel};
 use crate::theme::Theme;
-use crate::widgets::unified_diff::UnifiedDiff;
+use crate::widgets::unified_diff::{UnifiedDiff, UnifiedDiffState};
 use gitat_core::commit_detail::FileChangeStatus;
+use gitat_core::diff::DiffFile;
 use gitat_core::graph;
 use gitat_core::status::FileStatus;
 use ratatui::Frame;
@@ -241,17 +242,7 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
 
     // Header
     let (staged_count, unstaged_count, untracked_count) = app.change_counts();
-    let total_changes = staged_count + unstaged_count + untracked_count;
-
-    let header_text = if total_changes > 0 {
-        format!(
-            "Uncommitted Changes — {} staged, {} unstaged",
-            staged_count,
-            unstaged_count + untracked_count
-        )
-    } else {
-        "Uncommitted Changes".to_string()
-    };
+    let header_text = uncommitted_header_text(staged_count, unstaged_count, untracked_count);
     let header = Paragraph::new(Line::from(Span::styled(
         header_text,
         Theme::border_focused(),
@@ -264,61 +255,7 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_widget(header, chunks[0]);
 
     // File list (full width)
-    let mut items: Vec<ListItem> = Vec::new();
-
-    // Staged section
-    let staged = app.staged_entries();
-    if !staged.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "Staged",
-            Theme::file_staged(),
-        ))));
-        for (_, entry) in &staged {
-            let code = file_status_code(&entry.index_status);
-            items.push(ListItem::new(Line::from(vec![
-                Span::styled(format!("{code} "), Theme::file_staged()),
-                Span::raw(&entry.path),
-            ])));
-        }
-    }
-
-    // Modified (unstaged) section — includes files that are also staged (e.g. MM)
-    let modified = app.modified_entries();
-    if !modified.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "Modified",
-            Theme::file_unstaged(),
-        ))));
-        for (_, entry) in &modified {
-            let code = file_status_code(&entry.worktree_status);
-            items.push(ListItem::new(Line::from(vec![
-                Span::styled(format!("{code} "), Theme::file_unstaged()),
-                Span::raw(&entry.path),
-            ])));
-        }
-    }
-
-    // Untracked section
-    let untracked = app.untracked_entries();
-    if !untracked.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "Untracked",
-            Theme::file_untracked(),
-        ))));
-        for (_, entry) in &untracked {
-            items.push(ListItem::new(Line::from(vec![
-                Span::styled("? ", Theme::file_untracked()),
-                Span::raw(&entry.path),
-            ])));
-        }
-    }
-
-    if items.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "No uncommitted changes",
-            Theme::file_untracked(),
-        ))));
-    }
+    let items = build_status_file_items(app);
 
     let block = Block::default()
         .title(" Files ")
@@ -367,7 +304,13 @@ fn render_commit_detail(f: &mut Frame, app: &mut App, area: Rect) {
         .split(chunks[1]);
 
     render_file_list(f, app, panels[0]);
-    render_commit_diff(f, app, panels[1]);
+    render_diff_panel(
+        f,
+        app.commit_detail.diff.as_ref(),
+        &mut app.commit_detail.diff_state,
+        app.commit_detail.panel == Panel::Right,
+        panels[1],
+    );
 }
 
 fn render_file_list(f: &mut Frame, app: &mut App, area: Rect) {
@@ -407,33 +350,6 @@ fn render_file_list(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_stateful_widget(list, area, &mut app.commit_detail.file_state);
 }
 
-fn render_commit_diff(f: &mut Frame, app: &mut App, area: Rect) {
-    let is_focused = app.commit_detail.panel == Panel::Right;
-    let border_style = if is_focused {
-        Theme::border_focused()
-    } else {
-        Theme::border()
-    };
-
-    if let Some(ref diff_files) = app.commit_detail.diff {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(border_style);
-        let widget = UnifiedDiff::new(diff_files).block(block);
-        f.render_stateful_widget(widget, area, &mut app.commit_detail.diff_state);
-    } else {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(border_style);
-        let placeholder = Paragraph::new("Select a file to view diff")
-            .block(block)
-            .style(Theme::diff_context());
-        f.render_widget(placeholder, area);
-    }
-}
-
 fn render_uncommitted_detail(f: &mut Frame, app: &mut App, area: Rect) {
     // Split: header (1 line) + panels
     let chunks = Layout::default()
@@ -443,17 +359,7 @@ fn render_uncommitted_detail(f: &mut Frame, app: &mut App, area: Rect) {
 
     // Header
     let (staged_count, unstaged_count, untracked_count) = app.change_counts();
-    let total_changes = staged_count + unstaged_count + untracked_count;
-
-    let header_text = if total_changes > 0 {
-        format!(
-            "Uncommitted Changes — {} staged, {} unstaged",
-            staged_count,
-            unstaged_count + untracked_count
-        )
-    } else {
-        "Uncommitted Changes".to_string()
-    };
+    let header_text = uncommitted_header_text(staged_count, unstaged_count, untracked_count);
     let header = Paragraph::new(Line::from(Span::styled(
         header_text,
         Theme::border_focused(),
@@ -472,7 +378,13 @@ fn render_uncommitted_detail(f: &mut Frame, app: &mut App, area: Rect) {
         .split(chunks[1]);
 
     render_uncommitted_file_list(f, app, panels[0]);
-    render_uncommitted_diff(f, app, panels[1]);
+    render_diff_panel(
+        f,
+        app.uncommitted.diff.as_ref(),
+        &mut app.uncommitted.diff_state,
+        app.uncommitted.panel == Panel::Right,
+        panels[1],
+    );
 }
 
 fn file_status_code(status: &FileStatus) -> &'static str {
@@ -487,17 +399,21 @@ fn file_status_code(status: &FileStatus) -> &'static str {
     }
 }
 
-fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
-    let is_focused = app.uncommitted.panel == Panel::Left;
-    let border_style = if is_focused {
-        Theme::border_focused()
+fn uncommitted_header_text(staged: usize, unstaged: usize, untracked: usize) -> String {
+    if staged + unstaged + untracked > 0 {
+        format!(
+            "Uncommitted Changes — {} staged, {} unstaged",
+            staged,
+            unstaged + untracked
+        )
     } else {
-        Theme::border()
-    };
+        "Uncommitted Changes".to_string()
+    }
+}
 
+fn build_status_file_items(app: &App) -> Vec<ListItem<'static>> {
     let mut items: Vec<ListItem> = Vec::new();
 
-    // Staged section
     let staged = app.staged_entries();
     if !staged.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
@@ -513,7 +429,6 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
         }
     }
 
-    // Modified (unstaged) section — includes files that are also staged (e.g. MM)
     let modified = app.modified_entries();
     if !modified.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
@@ -529,7 +444,6 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
         }
     }
 
-    // Untracked section
     let untracked = app.untracked_entries();
     if !untracked.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
@@ -551,6 +465,51 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
         ))));
     }
 
+    items
+}
+
+fn render_diff_panel(
+    f: &mut Frame,
+    diff: Option<&Vec<DiffFile>>,
+    diff_state: &mut UnifiedDiffState,
+    is_focused: bool,
+    area: Rect,
+) {
+    let border_style = if is_focused {
+        Theme::border_focused()
+    } else {
+        Theme::border()
+    };
+
+    if let Some(diff_files) = diff {
+        let block = Block::default()
+            .title(" Diff ")
+            .borders(Borders::ALL)
+            .border_style(border_style);
+        let widget = UnifiedDiff::new(diff_files).block(block);
+        f.render_stateful_widget(widget, area, diff_state);
+    } else {
+        let block = Block::default()
+            .title(" Diff ")
+            .borders(Borders::ALL)
+            .border_style(border_style);
+        let placeholder = Paragraph::new("Select a file to view diff")
+            .block(block)
+            .style(Theme::diff_context());
+        f.render_widget(placeholder, area);
+    }
+}
+
+fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
+    let is_focused = app.uncommitted.panel == Panel::Left;
+    let border_style = if is_focused {
+        Theme::border_focused()
+    } else {
+        Theme::border()
+    };
+
+    let items = build_status_file_items(app);
+
     let block = Block::default()
         .title(" Files ")
         .borders(Borders::ALL)
@@ -563,29 +522,3 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_stateful_widget(list, area, &mut app.uncommitted.list_state);
 }
 
-fn render_uncommitted_diff(f: &mut Frame, app: &mut App, area: Rect) {
-    let is_focused = app.uncommitted.panel == Panel::Right;
-    let border_style = if is_focused {
-        Theme::border_focused()
-    } else {
-        Theme::border()
-    };
-
-    if let Some(ref diff_files) = app.uncommitted.diff {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(border_style);
-        let widget = UnifiedDiff::new(diff_files).block(block);
-        f.render_stateful_widget(widget, area, &mut app.uncommitted.diff_state);
-    } else {
-        let block = Block::default()
-            .title(" Diff ")
-            .borders(Borders::ALL)
-            .border_style(border_style);
-        let placeholder = Paragraph::new("Select a file to view diff")
-            .block(block)
-            .style(Theme::diff_context());
-        f.render_widget(placeholder, area);
-    }
-}
