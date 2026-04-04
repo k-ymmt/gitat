@@ -8,7 +8,6 @@
 
 ## UncommittedDetail ビューの改善
 
-- [ ] ファイルリストのセクションヘッダーとデータインデックスの乖離を修正 — "Staged"/"Modified"/"Untracked" ヘッダーがリストアイテムとして追加されており、カーソルインデックスと `app.status` のインデックスが一致しない（旧 Status ビューから引き継いだ問題）
 - [ ] staged/unstaged カウント計算ロジックの重複を解消 — `render_log_list` と `render_uncommitted_detail` で同じフィルタリングが行われている。`App` にヘルパーメソッドを追加するか共通関数に抽出する
 - [ ] Help モード（`?`）からの復帰先を修正 — UncommittedDetail から Help を開いて閉じると `Mode::Normal` に戻ってしまう。前モードを保存して正しく復帰させる
 - [ ] `load_diff_for_selected` のデッドコードパスを整理 — `normal.rs` の Enter ハンドラで非 Log タブ時に呼ばれるが、関数先頭で `Mode::UncommittedDetail` チェックにより即 return する
@@ -49,6 +48,12 @@
 - [ ] gitat 自身の操作後の冗長リフレッシュ抑制 — stage/commit 等の操作直後に `app.refresh()` と fs watcher からの `refresh_status_and_log()` が二重に走る。短いクールダウンフラグで抑制可能
 - [ ] `spawn_blocking` の `JoinHandle` 保持 — 現在は戻り値を捨てている。将来的なグレースフルシャットダウン対応のため保持を検討
 - [ ] ブランチ変更の自動監視 — 現在 `refresh_status_and_log()` は `branches` を更新しない。`.git/refs/heads/` や `.git/HEAD` の変更時にブランチも更新する拡張
+
+## Log グラフ表示の改善
+
+- [ ] コネクタ行（`|\`, `|/`）の表示 — 現在はコミットごとに1行のみでマージ/ブランチ接続は色分けで示している。`git log --graph` のような明示的なコネクタ行を追加するとより視覚的にわかりやすくなる
+- [ ] レーンのコンパクション — 中間レーンが空になった場合にシフトして詰める処理が未実装。末尾の空レーンのみ削除しており、長い履歴では無駄な空白列が残る可能性がある
+- [ ] 全ブランチ表示（`--all` 相当） — 現在はデフォルトブランチの履歴のみ。他ブランチのコミットも含めた全履歴のグラフ表示
 
 ## Post-MVP
 
