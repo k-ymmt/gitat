@@ -1,5 +1,5 @@
-use crate::runner::CommandRunner;
 use crate::GitError;
+use crate::runner::CommandRunner;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileStatus {

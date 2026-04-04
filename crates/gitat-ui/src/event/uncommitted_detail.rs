@@ -48,11 +48,7 @@ fn load_uncommitted_diff(app: &mut App, runner: &dyn CommandRunner) {
     }
 }
 
-pub(super) fn handle_uncommitted_detail(
-    app: &mut App,
-    key: KeyEvent,
-    runner: &dyn CommandRunner,
-) {
+pub(super) fn handle_uncommitted_detail(app: &mut App, key: KeyEvent, runner: &dyn CommandRunner) {
     match key.code {
         KeyCode::Esc => {
             app.mode = Mode::Normal;
@@ -108,12 +104,10 @@ pub(super) fn handle_uncommitted_detail(
                 app.diff_state.scroll_up(1);
             }
         }
-        KeyCode::Char('s') => {
-            match app.panel {
-                Panel::Left => super::staging::stage_or_unstage(app, runner),
-                Panel::Right => super::staging::stage_or_unstage_hunk(app, runner),
-            }
-        }
+        KeyCode::Char('s') => match app.panel {
+            Panel::Left => super::staging::stage_or_unstage(app, runner),
+            Panel::Right => super::staging::stage_or_unstage_hunk(app, runner),
+        },
         KeyCode::Char('c') => {
             app.return_to_uncommitted_detail = true;
             app.mode = Mode::Commit {

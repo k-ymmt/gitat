@@ -107,14 +107,11 @@ fn handle_search(app: &mut App, key: KeyEvent) {
         }
         KeyCode::Enter => {
             // Resolve filtered selection to original log_entries index
-            let original_index = app
-                .log_list_state
-                .selected()
-                .and_then(|sel| {
-                    app.filtered_log_indices
-                        .as_ref()
-                        .and_then(|indices| indices.get(sel).copied())
-                });
+            let original_index = app.log_list_state.selected().and_then(|sel| {
+                app.filtered_log_indices
+                    .as_ref()
+                    .and_then(|indices| indices.get(sel).copied())
+            });
             app.filtered_log_indices = None;
             app.pre_search_cursor = None;
             app.mode = Mode::Normal;
@@ -228,7 +225,9 @@ mod tests {
     #[test]
     fn test_escape_commit_mode() {
         let mut app = App::new();
-        app.mode = Mode::Commit { message: String::new() };
+        app.mode = Mode::Commit {
+            message: String::new(),
+        };
         let runner = MockRunner::new();
         handle_key(&mut app, mock_key(KeyCode::Esc), &runner);
         assert_eq!(app.mode, Mode::Normal);
@@ -257,7 +256,9 @@ mod tests {
                 parent_hashes: vec![],
             },
         ];
-        app.mode = Mode::Search { query: String::new() };
+        app.mode = Mode::Search {
+            query: String::new(),
+        };
         let runner = MockRunner::new();
 
         // Type 'f' — both match ("fix" and "feature")
@@ -309,7 +310,9 @@ mod tests {
             },
         ];
         app.pre_search_cursor = Some(0);
-        app.mode = Mode::Search { query: "second".into() };
+        app.mode = Mode::Search {
+            query: "second".into(),
+        };
         app.update_search_filter("second");
         // filtered_log_indices = Some([1]), selection = 0 (first filtered item)
         let runner = MockRunner::new();
@@ -325,7 +328,9 @@ mod tests {
     fn test_search_esc_restores_cursor() {
         let mut app = App::new();
         app.pre_search_cursor = Some(5);
-        app.mode = Mode::Search { query: "test".into() };
+        app.mode = Mode::Search {
+            query: "test".into(),
+        };
         app.filtered_log_indices = Some(vec![0, 2]);
         let runner = MockRunner::new();
 

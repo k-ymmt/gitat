@@ -330,8 +330,7 @@ impl StatefulWidget for UnifiedDiff<'_> {
                         && !matches!(row.right_kind, DiffLineKind::Context);
                     let is_paired = has_left && has_right;
 
-                    if matches!(row.left_kind, DiffLineKind::Context)
-                        && row.left_content.is_some()
+                    if matches!(row.left_kind, DiffLineKind::Context) && row.left_content.is_some()
                     {
                         // Context line: single row
                         screen_rows.push(ScreenRow {
@@ -447,9 +446,9 @@ impl StatefulWidget for UnifiedDiff<'_> {
 mod tests {
     use super::*;
     use gitat_core::diff::{DiffFile, DiffHunk, DiffLine, DiffLineKind};
+    use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use ratatui::buffer::Buffer;
-    use ratatui::Terminal;
 
     fn buffer_to_string(buf: &Buffer) -> String {
         let mut s = String::new();

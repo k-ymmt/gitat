@@ -1,8 +1,8 @@
-use ratatui::Frame;
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use crate::app::{App, Mode};
 use crate::theme::Theme;
 use crate::util::centered_rect;
+use ratatui::Frame;
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 pub fn render_commit_popup(f: &mut Frame, app: &App) {
     let Mode::Commit { message } = &app.mode else {

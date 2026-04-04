@@ -1,12 +1,12 @@
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
 use crossterm::event::{self, Event};
 use notify::RecursiveMode;
-use notify_debouncer_full::{new_debouncer, DebounceEventResult};
+use notify_debouncer_full::{DebounceEventResult, new_debouncer};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Tabs};
@@ -54,15 +54,17 @@ async fn run_app(
     let (key_tx, mut key_rx) = mpsc::unbounded_channel();
     let quit_flag = Arc::new(AtomicBool::new(false));
     let quit_flag_clone = quit_flag.clone();
-    tokio::task::spawn_blocking(move || loop {
-        if quit_flag_clone.load(Ordering::Relaxed) {
-            break;
-        }
-        if event::poll(Duration::from_millis(100)).unwrap_or(false)
-            && let Ok(ev) = event::read()
-            && key_tx.send(ev).is_err()
-        {
-            break;
+    tokio::task::spawn_blocking(move || {
+        loop {
+            if quit_flag_clone.load(Ordering::Relaxed) {
+                break;
+            }
+            if event::poll(Duration::from_millis(100)).unwrap_or(false)
+                && let Ok(ev) = event::read()
+                && key_tx.send(ev).is_err()
+            {
+                break;
+            }
         }
     });
 
@@ -75,9 +77,9 @@ async fn run_app(
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(1),  // tabs
-                    Constraint::Min(0),     // main content
-                    Constraint::Length(1),  // status bar
+                    Constraint::Length(1), // tabs
+                    Constraint::Min(0),    // main content
+                    Constraint::Length(1), // status bar
                 ])
                 .split(f.area());
 
@@ -110,18 +112,17 @@ async fn run_app(
             let status_text = if let Some(ref msg) = app.status_message {
                 msg.clone()
             } else {
-                "j/k: move  h/l: panel  Tab: switch  s: stage  c: commit  p: push  ?: help  q: quit".to_string()
+                "j/k: move  h/l: panel  Tab: switch  s: stage  c: commit  p: push  ?: help  q: quit"
+                    .to_string()
             };
             let status_bar = Paragraph::new(status_text).style(Theme::status_bar());
             f.render_widget(status_bar, chunks[2]);
 
             // Conflict editor overlay
             if matches!(app.mode, Mode::Conflict { .. })
-                && let (Some(file), Some(state)) =
-                    (&app.conflict_file, &mut app.conflict_state)
+                && let (Some(file), Some(state)) = (&app.conflict_file, &mut app.conflict_state)
             {
-                let editor =
-                    gitat_ui::widgets::conflict_editor::ConflictEditor::new(file);
+                let editor = gitat_ui::widgets::conflict_editor::ConflictEditor::new(file);
                 f.render_stateful_widget(editor, chunks[1], state);
             }
 
@@ -160,7 +161,13 @@ async fn run_app(
 
 fn setup_watcher(
     repo_path: &Path,
-) -> Result<(mpsc::Receiver<()>, notify_debouncer_full::Debouncer<notify::RecommendedWatcher, notify_debouncer_full::RecommendedCache>)> {
+) -> Result<(
+    mpsc::Receiver<()>,
+    notify_debouncer_full::Debouncer<
+        notify::RecommendedWatcher,
+        notify_debouncer_full::RecommendedCache,
+    >,
+)> {
     let (tx, rx) = mpsc::channel::<()>(1);
 
     let mut debouncer = new_debouncer(

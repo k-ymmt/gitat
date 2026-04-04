@@ -1,6 +1,6 @@
 use crate::GitError;
-use crate::runner::CommandRunner;
 use crate::diff::{DiffFile, DiffLineKind};
+use crate::runner::CommandRunner;
 
 pub fn stage_file(runner: &dyn CommandRunner, path: &str) -> Result<(), GitError> {
     runner.run(&["add", "--", path])?;
@@ -55,8 +55,16 @@ fn format_hunk_patch(diff_file: &DiffFile, hunk_index: usize) -> Result<String, 
         format!("b/{}", diff_file.new_path)
     };
 
-    let diff_old = if diff_file.old_path == "/dev/null" { &diff_file.new_path } else { &diff_file.old_path };
-    let diff_new = if diff_file.new_path == "/dev/null" { &diff_file.old_path } else { &diff_file.new_path };
+    let diff_old = if diff_file.old_path == "/dev/null" {
+        &diff_file.new_path
+    } else {
+        &diff_file.old_path
+    };
+    let diff_new = if diff_file.new_path == "/dev/null" {
+        &diff_file.old_path
+    } else {
+        &diff_file.new_path
+    };
     patch.push_str(&format!("diff --git a/{} b/{}\n", diff_old, diff_new));
     patch.push_str(&format!("--- {}\n", old_header));
     patch.push_str(&format!("+++ {}\n", new_header));
@@ -210,8 +218,7 @@ diff --git a/src/main.rs b/src/main.rs
     #[test]
     fn test_stage_hunk() {
         let diff_file = make_simple_diff_file();
-        let runner = MockRunner::new()
-            .with_response("apply --cached", "");
+        let runner = MockRunner::new().with_response("apply --cached", "");
         let result = stage_hunk(&runner, &diff_file, 0);
         assert!(result.is_ok());
     }
@@ -219,8 +226,7 @@ diff --git a/src/main.rs b/src/main.rs
     #[test]
     fn test_unstage_hunk() {
         let diff_file = make_simple_diff_file();
-        let runner = MockRunner::new()
-            .with_response("apply --cached --reverse", "");
+        let runner = MockRunner::new().with_response("apply --cached --reverse", "");
         let result = unstage_hunk(&runner, &diff_file, 0);
         assert!(result.is_ok());
     }

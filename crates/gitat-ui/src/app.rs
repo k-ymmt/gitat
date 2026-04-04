@@ -171,8 +171,7 @@ impl App {
             .iter()
             .enumerate()
             .filter(|(_, e)| {
-                e.index_status != FileStatus::Unmodified
-                    && e.index_status != FileStatus::Untracked
+                e.index_status != FileStatus::Unmodified && e.index_status != FileStatus::Untracked
             })
             .map(|(i, _)| i)
             .collect();
@@ -239,8 +238,7 @@ impl App {
         };
 
         // If current is valid and points to a file, keep it
-        if current < self.uncommitted_file_map.len()
-            && self.uncommitted_file_map[current].is_some()
+        if current < self.uncommitted_file_map.len() && self.uncommitted_file_map[current].is_some()
         {
             return;
         }
@@ -253,8 +251,7 @@ impl App {
             .skip(current)
             .find(|(_, x)| x.is_some())
             .map(|(i, _)| i);
-        let backward = self.uncommitted_file_map
-            [..current.min(self.uncommitted_file_map.len())]
+        let backward = self.uncommitted_file_map[..current.min(self.uncommitted_file_map.len())]
             .iter()
             .rposition(|x| x.is_some());
 

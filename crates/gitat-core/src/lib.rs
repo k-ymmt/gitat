@@ -1,14 +1,14 @@
-pub mod runner;
-pub mod status;
-pub mod log;
-pub mod diff;
 pub mod branch;
-pub mod stage;
 pub mod commit;
 pub mod commit_detail;
-pub mod remote;
 pub mod conflict;
+pub mod diff;
 pub mod graph;
+pub mod log;
+pub mod remote;
+pub mod runner;
+pub mod stage;
+pub mod status;
 
 use thiserror::Error;
 

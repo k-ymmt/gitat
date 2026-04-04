@@ -80,7 +80,12 @@ pub fn parse_diff(output: &str) -> Result<Vec<DiffFile>, GitError> {
                 cur_hunks.push(h);
             }
             // Flush current file
-            flush_file(&mut files, &mut cur_old_path, &mut cur_new_path, &mut cur_hunks);
+            flush_file(
+                &mut files,
+                &mut cur_old_path,
+                &mut cur_new_path,
+                &mut cur_hunks,
+            );
             // A new file entry begins; paths will be set by --- and +++ lines
         } else if let Some(path_str) = line.strip_prefix("--- ") {
             let path = if path_str == "/dev/null" {
@@ -162,7 +167,12 @@ pub fn parse_diff(output: &str) -> Result<Vec<DiffFile>, GitError> {
     if let Some(h) = cur_hunk.take() {
         cur_hunks.push(h);
     }
-    flush_file(&mut files, &mut cur_old_path, &mut cur_new_path, &mut cur_hunks);
+    flush_file(
+        &mut files,
+        &mut cur_old_path,
+        &mut cur_new_path,
+        &mut cur_hunks,
+    );
 
     Ok(files)
 }

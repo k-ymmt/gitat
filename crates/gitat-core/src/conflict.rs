@@ -67,12 +67,15 @@ pub fn parse_conflict_markers(path: &str, content: &str) -> Result<ConflictFile,
 
 pub fn get_conflict_paths(runner: &dyn CommandRunner) -> Result<Vec<String>, GitError> {
     let output = runner.run(&["diff", "--name-only", "--diff-filter=U"])?;
-    Ok(output.lines().filter(|l| !l.is_empty()).map(|l| l.to_string()).collect())
+    Ok(output
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| l.to_string())
+        .collect())
 }
 
 pub fn resolve_file(runner: &dyn CommandRunner, path: &str, content: &str) -> Result<(), GitError> {
-    std::fs::write(Path::new(path), content)
-        .map_err(|e| GitError::IoError(e.to_string()))?;
+    std::fs::write(Path::new(path), content).map_err(|e| GitError::IoError(e.to_string()))?;
     runner.run(&["add", "--", path])?;
     Ok(())
 }

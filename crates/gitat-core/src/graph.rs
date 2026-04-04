@@ -18,24 +18,25 @@ pub fn build_graph(commits: &[CommitInfo]) -> Vec<GraphRow> {
     let mut rows = Vec::new();
 
     for commit in commits {
-        let commit_lane = match lanes.iter().position(|l| l.as_deref() == Some(&*commit.hash)) {
+        let commit_lane = match lanes
+            .iter()
+            .position(|l| l.as_deref() == Some(&*commit.hash))
+        {
             Some(pos) => pos,
-            None => {
-                match lanes.iter().position(|l| l.is_none()) {
-                    Some(pos) => {
-                        lanes[pos] = Some(commit.hash.clone());
-                        lane_colors[pos] = next_color;
-                        next_color += 1;
-                        pos
-                    }
-                    None => {
-                        lanes.push(Some(commit.hash.clone()));
-                        lane_colors.push(next_color);
-                        next_color += 1;
-                        lanes.len() - 1
-                    }
+            None => match lanes.iter().position(|l| l.is_none()) {
+                Some(pos) => {
+                    lanes[pos] = Some(commit.hash.clone());
+                    lane_colors[pos] = next_color;
+                    next_color += 1;
+                    pos
                 }
-            }
+                None => {
+                    lanes.push(Some(commit.hash.clone()));
+                    lane_colors.push(next_color);
+                    next_color += 1;
+                    lanes.len() - 1
+                }
+            },
         };
 
         let commit_color = lane_colors[commit_lane];
@@ -65,8 +66,7 @@ pub fn build_graph(commits: &[CommitInfo]) -> Vec<GraphRow> {
         } else {
             lanes[commit_lane] = Some(commit.parent_hashes[0].clone());
             for parent in &commit.parent_hashes[1..] {
-                let already_tracked =
-                    lanes.iter().any(|l| l.as_deref() == Some(parent.as_str()));
+                let already_tracked = lanes.iter().any(|l| l.as_deref() == Some(parent.as_str()));
                 if !already_tracked {
                     match lanes.iter().position(|l| l.is_none()) {
                         Some(pos) => {

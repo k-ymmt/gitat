@@ -1,13 +1,13 @@
+use crate::app::{App, Mode, Panel};
+use crate::theme::Theme;
+use crate::widgets::unified_diff::UnifiedDiff;
+use gitat_core::commit_detail::FileChangeStatus;
+use gitat_core::graph;
+use gitat_core::status::FileStatus;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
-use gitat_core::commit_detail::FileChangeStatus;
-use gitat_core::status::FileStatus;
-use gitat_core::graph;
-use crate::app::{App, Mode, Panel};
-use crate::theme::Theme;
-use crate::widgets::unified_diff::UnifiedDiff;
 
 pub fn render(f: &mut Frame, app: &mut App, area: Rect) {
     match app.mode {
@@ -50,9 +50,7 @@ fn render_log_list(f: &mut Frame, app: &mut App, area: Rect) {
     }
 
     // Search bar
-    if is_searching
-        && let Mode::Search { ref query } = app.mode
-    {
+    if is_searching && let Mode::Search { ref query } = app.mode {
         let search_text = format!("/{query}_");
         let search_bar = Paragraph::new(search_text).style(Theme::status_bar());
         f.render_widget(search_bar, outer_chunks[1]);
@@ -210,23 +208,30 @@ fn render_commit_preview(f: &mut Frame, app: &mut App, area: Rect) {
         Line::from(Span::raw(&commit.message)),
         Line::from(""),
     ];
-    let meta = Paragraph::new(meta_lines)
-        .block(Block::default().borders(Borders::BOTTOM).border_style(Theme::border()));
+    let meta = Paragraph::new(meta_lines).block(
+        Block::default()
+            .borders(Borders::BOTTOM)
+            .border_style(Theme::border()),
+    );
     f.render_widget(meta, chunks[0]);
 
     // File list (full width)
-    let items: Vec<ListItem> = app.commit_detail_files.iter().map(|entry| {
-        let (code, style) = match entry.status {
-            FileChangeStatus::Added => ("A", Theme::file_added()),
-            FileChangeStatus::Modified => ("M", Theme::commit_hash()),
-            FileChangeStatus::Deleted => ("D", Theme::file_unstaged()),
-            FileChangeStatus::Renamed => ("R", Theme::commit_ref()),
-        };
-        ListItem::new(Line::from(vec![
-            Span::styled(format!("{code} "), style),
-            Span::raw(&entry.path),
-        ]))
-    }).collect();
+    let items: Vec<ListItem> = app
+        .commit_detail_files
+        .iter()
+        .map(|entry| {
+            let (code, style) = match entry.status {
+                FileChangeStatus::Added => ("A", Theme::file_added()),
+                FileChangeStatus::Modified => ("M", Theme::commit_hash()),
+                FileChangeStatus::Deleted => ("D", Theme::file_unstaged()),
+                FileChangeStatus::Renamed => ("R", Theme::commit_ref()),
+            };
+            ListItem::new(Line::from(vec![
+                Span::styled(format!("{code} "), style),
+                Span::raw(&entry.path),
+            ]))
+        })
+        .collect();
 
     let block = Block::default()
         .title(" Files ")
@@ -246,12 +251,16 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
 
     // Header
     let staged_count = app.status.iter().filter(|e| e.is_staged()).count();
-    let unstaged_count = app.status.iter().filter(|e| {
-        !e.is_staged() && e.worktree_status != FileStatus::Untracked
-    }).count();
-    let untracked_count = app.status.iter().filter(|e| {
-        e.index_status == FileStatus::Untracked
-    }).count();
+    let unstaged_count = app
+        .status
+        .iter()
+        .filter(|e| !e.is_staged() && e.worktree_status != FileStatus::Untracked)
+        .count();
+    let untracked_count = app
+        .status
+        .iter()
+        .filter(|e| e.index_status == FileStatus::Untracked)
+        .count();
     let total_changes = staged_count + unstaged_count + untracked_count;
 
     let header_text = if total_changes > 0 {
@@ -263,17 +272,28 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
     } else {
         "Uncommitted Changes".to_string()
     };
-    let header = Paragraph::new(Line::from(Span::styled(header_text, Theme::border_focused())))
-        .block(Block::default().borders(Borders::BOTTOM).border_style(Theme::border()));
+    let header = Paragraph::new(Line::from(Span::styled(
+        header_text,
+        Theme::border_focused(),
+    )))
+    .block(
+        Block::default()
+            .borders(Borders::BOTTOM)
+            .border_style(Theme::border()),
+    );
     f.render_widget(header, chunks[0]);
 
     // File list (full width)
     let mut items: Vec<ListItem> = Vec::new();
 
     // Staged section
-    let staged: Vec<_> = app.status.iter().filter(|e| {
-        e.index_status != FileStatus::Unmodified && e.index_status != FileStatus::Untracked
-    }).collect();
+    let staged: Vec<_> = app
+        .status
+        .iter()
+        .filter(|e| {
+            e.index_status != FileStatus::Unmodified && e.index_status != FileStatus::Untracked
+        })
+        .collect();
 
     if !staged.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
@@ -290,10 +310,14 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
     }
 
     // Modified (unstaged) section — includes files that are also staged (e.g. MM)
-    let modified: Vec<_> = app.status.iter().filter(|e| {
-        e.worktree_status != FileStatus::Unmodified
-            && e.worktree_status != FileStatus::Untracked
-    }).collect();
+    let modified: Vec<_> = app
+        .status
+        .iter()
+        .filter(|e| {
+            e.worktree_status != FileStatus::Unmodified
+                && e.worktree_status != FileStatus::Untracked
+        })
+        .collect();
 
     if !modified.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
@@ -310,9 +334,11 @@ fn render_uncommitted_preview(f: &mut Frame, app: &mut App, area: Rect) {
     }
 
     // Untracked section
-    let untracked: Vec<_> = app.status.iter().filter(|e| {
-        e.index_status == FileStatus::Untracked
-    }).collect();
+    let untracked: Vec<_> = app
+        .status
+        .iter()
+        .filter(|e| e.index_status == FileStatus::Untracked)
+        .collect();
 
     if !untracked.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
@@ -367,8 +393,11 @@ fn render_commit_detail(f: &mut Frame, app: &mut App, area: Rect) {
         Line::from(Span::raw(&commit.message)),
         Line::from(""),
     ];
-    let meta = Paragraph::new(meta_lines)
-        .block(Block::default().borders(Borders::BOTTOM).border_style(Theme::border()));
+    let meta = Paragraph::new(meta_lines).block(
+        Block::default()
+            .borders(Borders::BOTTOM)
+            .border_style(Theme::border()),
+    );
     f.render_widget(meta, chunks[0]);
 
     // Two panels
@@ -389,18 +418,22 @@ fn render_file_list(f: &mut Frame, app: &mut App, area: Rect) {
         Theme::border()
     };
 
-    let items: Vec<ListItem> = app.commit_detail_files.iter().map(|entry| {
-        let (code, style) = match entry.status {
-            FileChangeStatus::Added => ("A", Theme::file_added()),
-            FileChangeStatus::Modified => ("M", Theme::commit_hash()),
-            FileChangeStatus::Deleted => ("D", Theme::file_unstaged()),
-            FileChangeStatus::Renamed => ("R", Theme::commit_ref()),
-        };
-        ListItem::new(Line::from(vec![
-            Span::styled(format!("{code} "), style),
-            Span::raw(&entry.path),
-        ]))
-    }).collect();
+    let items: Vec<ListItem> = app
+        .commit_detail_files
+        .iter()
+        .map(|entry| {
+            let (code, style) = match entry.status {
+                FileChangeStatus::Added => ("A", Theme::file_added()),
+                FileChangeStatus::Modified => ("M", Theme::commit_hash()),
+                FileChangeStatus::Deleted => ("D", Theme::file_unstaged()),
+                FileChangeStatus::Renamed => ("R", Theme::commit_ref()),
+            };
+            ListItem::new(Line::from(vec![
+                Span::styled(format!("{code} "), style),
+                Span::raw(&entry.path),
+            ]))
+        })
+        .collect();
 
     let block = Block::default()
         .title(" Files ")
@@ -450,12 +483,16 @@ fn render_uncommitted_detail(f: &mut Frame, app: &mut App, area: Rect) {
 
     // Header
     let staged_count = app.status.iter().filter(|e| e.is_staged()).count();
-    let unstaged_count = app.status.iter().filter(|e| {
-        !e.is_staged() && e.worktree_status != FileStatus::Untracked
-    }).count();
-    let untracked_count = app.status.iter().filter(|e| {
-        e.index_status == FileStatus::Untracked
-    }).count();
+    let unstaged_count = app
+        .status
+        .iter()
+        .filter(|e| !e.is_staged() && e.worktree_status != FileStatus::Untracked)
+        .count();
+    let untracked_count = app
+        .status
+        .iter()
+        .filter(|e| e.index_status == FileStatus::Untracked)
+        .count();
     let total_changes = staged_count + unstaged_count + untracked_count;
 
     let header_text = if total_changes > 0 {
@@ -467,8 +504,15 @@ fn render_uncommitted_detail(f: &mut Frame, app: &mut App, area: Rect) {
     } else {
         "Uncommitted Changes".to_string()
     };
-    let header = Paragraph::new(Line::from(Span::styled(header_text, Theme::border_focused())))
-        .block(Block::default().borders(Borders::BOTTOM).border_style(Theme::border()));
+    let header = Paragraph::new(Line::from(Span::styled(
+        header_text,
+        Theme::border_focused(),
+    )))
+    .block(
+        Block::default()
+            .borders(Borders::BOTTOM)
+            .border_style(Theme::border()),
+    );
     f.render_widget(header, chunks[0]);
 
     // Two panels
@@ -504,9 +548,13 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
     let mut items: Vec<ListItem> = Vec::new();
 
     // Staged section
-    let staged: Vec<_> = app.status.iter().filter(|e| {
-        e.index_status != FileStatus::Unmodified && e.index_status != FileStatus::Untracked
-    }).collect();
+    let staged: Vec<_> = app
+        .status
+        .iter()
+        .filter(|e| {
+            e.index_status != FileStatus::Unmodified && e.index_status != FileStatus::Untracked
+        })
+        .collect();
 
     if !staged.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
@@ -523,10 +571,14 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
     }
 
     // Modified (unstaged) section — includes files that are also staged (e.g. MM)
-    let modified: Vec<_> = app.status.iter().filter(|e| {
-        e.worktree_status != FileStatus::Unmodified
-            && e.worktree_status != FileStatus::Untracked
-    }).collect();
+    let modified: Vec<_> = app
+        .status
+        .iter()
+        .filter(|e| {
+            e.worktree_status != FileStatus::Unmodified
+                && e.worktree_status != FileStatus::Untracked
+        })
+        .collect();
 
     if !modified.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
@@ -543,9 +595,11 @@ fn render_uncommitted_file_list(f: &mut Frame, app: &mut App, area: Rect) {
     }
 
     // Untracked section
-    let untracked: Vec<_> = app.status.iter().filter(|e| {
-        e.index_status == FileStatus::Untracked
-    }).collect();
+    let untracked: Vec<_> = app
+        .status
+        .iter()
+        .filter(|e| e.index_status == FileStatus::Untracked)
+        .collect();
 
     if !untracked.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(

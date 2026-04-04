@@ -209,9 +209,9 @@ impl StatefulWidget for ConflictEditor<'_> {
 mod tests {
     use super::*;
     use gitat_core::conflict::{ConflictFile, ConflictRegion};
+    use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use ratatui::buffer::Buffer;
-    use ratatui::Terminal;
 
     fn buffer_to_string(buf: &Buffer) -> String {
         let mut s = String::new();

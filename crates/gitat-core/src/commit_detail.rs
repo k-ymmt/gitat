@@ -1,6 +1,6 @@
+use crate::GitError;
 use crate::diff::{self, DiffFile};
 use crate::runner::CommandRunner;
-use crate::GitError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileChangeStatus {
@@ -50,7 +50,14 @@ pub fn get_commit_files(
     first_parent: Option<&str>,
 ) -> Result<Vec<CommitFileEntry>, GitError> {
     let output = if let Some(parent) = first_parent {
-        runner.run(&["diff-tree", "--no-commit-id", "-r", "--name-status", parent, hash])?
+        runner.run(&[
+            "diff-tree",
+            "--no-commit-id",
+            "-r",
+            "--name-status",
+            parent,
+            hash,
+        ])?
     } else {
         runner.run(&["diff-tree", "--no-commit-id", "-r", "--name-status", hash])?
     };
@@ -122,11 +129,10 @@ mod tests {
 
     #[test]
     fn test_get_commit_files() {
-        let runner = crate::runner::MockRunner::new()
-            .with_response(
-                "diff-tree --no-commit-id -r --name-status abc123",
-                "M\tsrc/main.rs\nA\tsrc/new.rs\n",
-            );
+        let runner = crate::runner::MockRunner::new().with_response(
+            "diff-tree --no-commit-id -r --name-status abc123",
+            "M\tsrc/main.rs\nA\tsrc/new.rs\n",
+        );
         let result = get_commit_files(&runner, "abc123", None).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].path, "src/main.rs");
@@ -135,11 +141,10 @@ mod tests {
 
     #[test]
     fn test_get_commit_files_merge_commit() {
-        let runner = crate::runner::MockRunner::new()
-            .with_response(
-                "diff-tree --no-commit-id -r --name-status parent1 merge123",
-                "M\tsrc/main.rs\nA\tsrc/new.rs\n",
-            );
+        let runner = crate::runner::MockRunner::new().with_response(
+            "diff-tree --no-commit-id -r --name-status parent1 merge123",
+            "M\tsrc/main.rs\nA\tsrc/new.rs\n",
+        );
         let result = get_commit_files(&runner, "merge123", Some("parent1")).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].path, "src/main.rs");
@@ -160,11 +165,9 @@ diff --git a/src/main.rs b/src/main.rs
  }
 ";
         let runner = crate::runner::MockRunner::new()
-            .with_response(
-                "diff parent123..abc123 -- src/main.rs",
-                diff_output,
-            );
-        let result = get_commit_file_diff(&runner, "abc123", Some("parent123"), "src/main.rs").unwrap();
+            .with_response("diff parent123..abc123 -- src/main.rs", diff_output);
+        let result =
+            get_commit_file_diff(&runner, "abc123", Some("parent123"), "src/main.rs").unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].old_path, "src/main.rs");
     }
@@ -181,10 +184,7 @@ new file mode 100644
 +fn helper() {}
 ";
         let runner = crate::runner::MockRunner::new()
-            .with_response(
-                "show --format= abc123 -- src/main.rs",
-                diff_output,
-            );
+            .with_response("show --format= abc123 -- src/main.rs", diff_output);
         let result = get_commit_file_diff(&runner, "abc123", None, "src/main.rs").unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].old_path, "/dev/null");

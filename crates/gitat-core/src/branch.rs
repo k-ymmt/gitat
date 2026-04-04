@@ -14,10 +14,14 @@ pub fn parse_branches(output: &str) -> Result<Vec<BranchInfo>, GitError> {
     let mut branches = Vec::new();
     for line in output.lines() {
         let line = line.trim();
-        if line.is_empty() { continue; }
+        if line.is_empty() {
+            continue;
+        }
         let is_current = line.starts_with('*');
         let line = line.trim_start_matches(['*', ' ']);
-        if line.contains(" -> ") { continue; } // Skip symbolic refs
+        if line.contains(" -> ") {
+            continue;
+        } // Skip symbolic refs
         let parts: Vec<&str> = line.splitn(3, ' ').collect();
         if parts.len() >= 2 {
             branches.push(BranchInfo {

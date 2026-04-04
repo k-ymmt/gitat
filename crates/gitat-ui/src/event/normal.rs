@@ -71,31 +71,27 @@ pub(super) fn handle_normal(app: &mut App, key: KeyEvent, runner: &dyn CommandRu
                 message: String::new(),
             };
         }
-        KeyCode::Char('p') => {
-            match gitat_core::branch::current_branch(runner) {
-                Ok(branch) => {
-                    if let Err(e) = gitat_core::remote::push(runner, "origin", &branch) {
-                        app.set_status_message(format!("Push failed: {e}"));
-                    } else {
-                        app.set_status_message(format!("Pushed to origin/{branch}"));
-                    }
+        KeyCode::Char('p') => match gitat_core::branch::current_branch(runner) {
+            Ok(branch) => {
+                if let Err(e) = gitat_core::remote::push(runner, "origin", &branch) {
+                    app.set_status_message(format!("Push failed: {e}"));
+                } else {
+                    app.set_status_message(format!("Pushed to origin/{branch}"));
                 }
-                Err(e) => app.set_status_message(format!("Push failed: {e}")),
             }
-        }
-        KeyCode::Char('P') => {
-            match gitat_core::branch::current_branch(runner) {
-                Ok(branch) => {
-                    if let Err(e) = gitat_core::remote::pull(runner, "origin", &branch) {
-                        app.set_status_message(format!("Pull failed: {e}"));
-                    } else {
-                        app.set_status_message(format!("Pulled from origin/{branch}"));
-                        app.refresh(runner);
-                    }
+            Err(e) => app.set_status_message(format!("Push failed: {e}")),
+        },
+        KeyCode::Char('P') => match gitat_core::branch::current_branch(runner) {
+            Ok(branch) => {
+                if let Err(e) = gitat_core::remote::pull(runner, "origin", &branch) {
+                    app.set_status_message(format!("Pull failed: {e}"));
+                } else {
+                    app.set_status_message(format!("Pulled from origin/{branch}"));
+                    app.refresh(runner);
                 }
-                Err(e) => app.set_status_message(format!("Pull failed: {e}")),
             }
-        }
+            Err(e) => app.set_status_message(format!("Pull failed: {e}")),
+        },
         KeyCode::Char('b') => {
             // Placeholder: branch creation requires user input (not yet implemented)
             app.set_status_message("Branch creation: not yet implemented");
@@ -205,11 +201,10 @@ mod tests {
         assert_eq!(app.log_list_state.selected(), Some(0));
 
         // Second j press selects index 1 (first commit) and loads preview
-        let runner = MockRunner::new()
-            .with_response(
-                "diff-tree --no-commit-id -r --name-status parent1 abc123",
-                "M\tsrc/main.rs\n",
-            );
+        let runner = MockRunner::new().with_response(
+            "diff-tree --no-commit-id -r --name-status parent1 abc123",
+            "M\tsrc/main.rs\n",
+        );
 
         handle_key(&mut app, mock_key(KeyCode::Char('j')), &runner);
         assert_eq!(app.log_list_state.selected(), Some(1));

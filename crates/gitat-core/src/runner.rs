@@ -83,7 +83,8 @@ impl MockRunner {
     }
 
     pub fn with_response(mut self, key: &str, output: &str) -> Self {
-        self.responses.insert(key.to_string(), Ok(output.to_string()));
+        self.responses
+            .insert(key.to_string(), Ok(output.to_string()));
         self
     }
 }
@@ -97,14 +98,13 @@ impl Default for MockRunner {
 impl CommandRunner for MockRunner {
     fn run(&self, args: &[&str]) -> Result<String, GitError> {
         let key = args.join(" ");
-        self.responses
-            .get(&key)
-            .cloned()
-            .unwrap_or_else(|| Err(GitError::CommandFailed {
+        self.responses.get(&key).cloned().unwrap_or_else(|| {
+            Err(GitError::CommandFailed {
                 command: format!("git {}", key),
                 stderr: "mock: no response configured".to_string(),
                 exit_code: 1,
-            }))
+            })
+        })
     }
 
     fn run_with_stdin(&self, args: &[&str], _stdin_data: &str) -> Result<String, GitError> {
@@ -133,8 +133,7 @@ mod tests {
 
     #[test]
     fn test_mock_runner_run_with_stdin() {
-        let runner = MockRunner::new()
-            .with_response("apply --cached", "");
+        let runner = MockRunner::new().with_response("apply --cached", "");
         let result = runner.run_with_stdin(&["apply", "--cached"], "patch content");
         assert!(result.is_ok());
     }

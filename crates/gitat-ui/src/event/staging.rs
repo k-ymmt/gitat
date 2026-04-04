@@ -55,7 +55,10 @@ pub(super) fn stage_or_unstage_hunk(app: &mut App, runner: &dyn CommandRunner) {
         _ => return,
     };
 
-    let diff_file = match diff_files.iter().find(|f| f.new_path == entry.path || f.old_path == entry.path) {
+    let diff_file = match diff_files
+        .iter()
+        .find(|f| f.new_path == entry.path || f.old_path == entry.path)
+    {
         Some(f) => f.clone(),
         None => return,
     };
@@ -197,7 +200,10 @@ mod tests {
         handle_key(&mut app, mock_key(KeyCode::Char('s')), &runner);
 
         // After staging the only hunk, diff should be reloaded (now empty)
-        assert!(app.status_message.is_none() || !app.status_message.as_ref().unwrap().contains("failed"));
+        assert!(
+            app.status_message.is_none()
+                || !app.status_message.as_ref().unwrap().contains("failed")
+        );
     }
 
     #[test]
@@ -217,7 +223,10 @@ mod tests {
             .with_response("add -- src/main.rs", "")
             .with_response("status --porcelain=v1", "")
             .with_response("branch -v --no-color", "")
-            .with_response("log --max-count=100 --format=%H\x1f%h\x1f%P\x1f%D\x1f%an\x1f%ai\x1f%s\x1e", "");
+            .with_response(
+                "log --max-count=100 --format=%H\x1f%h\x1f%P\x1f%D\x1f%an\x1f%ai\x1f%s\x1e",
+                "",
+            );
 
         handle_key(&mut app, mock_key(KeyCode::Char('s')), &runner);
         // Should not error — file-level stage_file was called

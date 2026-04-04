@@ -15,10 +15,11 @@ pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
     };
 
     let first_parent = commit.parent_hashes.first().map(|s| s.as_str());
-    let files = match gitat_core::commit_detail::get_commit_files(runner, &commit.hash, first_parent) {
-        Ok(f) => f,
-        Err(_) => return,
-    };
+    let files =
+        match gitat_core::commit_detail::get_commit_files(runner, &commit.hash, first_parent) {
+            Ok(f) => f,
+            Err(_) => return,
+        };
 
     app.commit_detail_files = files;
     app.commit_detail_commit = Some(commit);
@@ -26,7 +27,7 @@ pub(super) fn load_commit_preview(app: &mut App, runner: &dyn CommandRunner) {
 
 pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
     let idx = match app.log_list_state.selected() {
-        Some(i) if i > 0 => i - 1,  // offset: index 0 is uncommitted item
+        Some(i) if i > 0 => i - 1, // offset: index 0 is uncommitted item
         _ => return,
     };
     let commit = match app.log_entries.get(idx) {
@@ -35,13 +36,14 @@ pub(super) fn enter_commit_detail(app: &mut App, runner: &dyn CommandRunner) {
     };
 
     let first_parent = commit.parent_hashes.first().map(|s| s.as_str());
-    let files = match gitat_core::commit_detail::get_commit_files(runner, &commit.hash, first_parent) {
-        Ok(f) => f,
-        Err(e) => {
-            app.set_status_message(format!("Failed to load commit files: {e}"));
-            return;
-        }
-    };
+    let files =
+        match gitat_core::commit_detail::get_commit_files(runner, &commit.hash, first_parent) {
+            Ok(f) => f,
+            Err(e) => {
+                app.set_status_message(format!("Failed to load commit files: {e}"));
+                return;
+            }
+        };
 
     app.commit_detail_commit = Some(commit);
     app.commit_detail_files = files;
@@ -178,11 +180,10 @@ mod tests {
         }];
         app.log_list_state.select(Some(1)); // index 1 = first commit
 
-        let runner = MockRunner::new()
-            .with_response(
-                "diff-tree --no-commit-id -r --name-status parent1 abc123",
-                "M\tsrc/main.rs\n",
-            );
+        let runner = MockRunner::new().with_response(
+            "diff-tree --no-commit-id -r --name-status parent1 abc123",
+            "M\tsrc/main.rs\n",
+        );
 
         load_commit_preview(&mut app, &runner);
 
