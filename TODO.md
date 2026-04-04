@@ -6,6 +6,13 @@
 - [ ] コンフリクトエディタのインライン編集 (`e` キー) — `editing` フィールドは存在するがキーハンドラなし
 - [ ] Diff のコンテキスト折りたたみ — 変更のない領域を折りたたんで表示
 
+## UncommittedDetail ビューの改善
+
+- [ ] ファイルリストのセクションヘッダーとデータインデックスの乖離を修正 — "Staged"/"Modified"/"Untracked" ヘッダーがリストアイテムとして追加されており、カーソルインデックスと `app.status` のインデックスが一致しない（旧 Status ビューから引き継いだ問題）
+- [ ] staged/unstaged カウント計算ロジックの重複を解消 — `render_log_list` と `render_uncommitted_detail` で同じフィルタリングが行われている。`App` にヘルパーメソッドを追加するか共通関数に抽出する
+- [ ] Help モード（`?`）からの復帰先を修正 — UncommittedDetail から Help を開いて閉じると `Mode::Normal` に戻ってしまう。前モードを保存して正しく復帰させる
+- [ ] `load_diff_for_selected` のデッドコードパスを整理 — `normal.rs` の Enter ハンドラで非 Log タブ時に呼ばれるが、関数先頭で `Mode::UncommittedDetail` チェックにより即 return する
+
 ## コミット詳細画面の改善
 
 - [ ] `FileChangeStatus` に `Copied` バリアントを追加 — `git diff-tree` の `C` ステータスが現在 `Modified` にフォールバックしている
@@ -15,8 +22,9 @@
 ## テスト
 
 - [ ] 統合テスト: ステージング後の diff 読み込み、タブ切り替え時の状態保持
-- [ ] ビュー全体のスナップショットテスト（`views/status`, `views/log`, `views/branches` の複合レイアウト）
+- [ ] ビュー全体のスナップショットテスト（`views/log` の UncommittedDetail、`views/branches` の複合レイアウト）
 - [ ] コミット詳細画面のスナップショットテスト（メタデータ + ファイル一覧 + diff パネルのレイアウト）
+- [ ] コミット成功後に `Mode::UncommittedDetail` に戻ることの確認テスト
 - [ ] `assert_yaml_snapshot!` への移行検討（serde を dev-dep に追加してスナップショットの可読性向上）
 - [ ] `cargo-insta` CLI 導入（`cargo insta review` による対話的スナップショット承認）
 
