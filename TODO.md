@@ -7,7 +7,6 @@
 
 ## UncommittedDetail ビューの改善
 
-- [ ] staged/unstaged カウント計算ロジックの重複を解消 — `render_log_list` と `render_uncommitted_detail` で同じフィルタリングが行われている。`App` にヘルパーメソッドを追加するか共通関数に抽出する
 - [ ] Help モード（`?`）からの復帰先を修正 — UncommittedDetail から Help を開いて閉じると `Mode::Normal` に戻ってしまう。`mode_stack`（`push_mode`/`pop_mode`）を活用して正しく復帰させる
 - [ ] `load_diff_for_selected` のデッドコードパスを整理 — `normal.rs` の Enter ハンドラで非 Log タブ時に呼ばれるが、関数先頭で `Mode::UncommittedDetail` チェックにより即 return する
 
@@ -53,6 +52,14 @@
 - [ ] コネクタ行（`|\`, `|/`）の表示 — 現在はコミットごとに1行のみでマージ/ブランチ接続は色分けで示している。`git log --graph` のような明示的なコネクタ行を追加するとより視覚的にわかりやすくなる
 - [ ] レーンのコンパクション — 中間レーンが空になった場合にシフトして詰める処理が未実装。末尾の空レーンのみ削除しており、長い履歴では無駄な空白列が残る可能性がある
 - [ ] 全ブランチ表示（`--all` 相当） — 現在はデフォルトブランチの履歴のみ。他ブランチのコミットも含めた全履歴のグラフ表示
+
+## リファクタリング（継続）
+
+- [ ] `unified_diff.rs`（897行）のサブモジュール分割 — state, row_pairing, word_diff, render, widget に分離
+- [ ] `event/mod.rs` のトレイトベースモードハンドラパターン — 各 Mode に対応する handler trait を導入し拡張性を向上
+- [ ] diff 読み込みロジックの共通化 — `staging.rs`, `uncommitted_detail.rs`, `commit_detail.rs` で類似の diff 読み込み + エラーハンドリングが重複
+- [ ] イベントハンドラのエラーハンドリングパターン統一 — `status_bar.set(format!("Failed to ...: {e}"))` パターンが 15+ 箇所で繰り返されている
+- [ ] テストの専用ディレクトリへの再編成 — 各ファイル末尾の `mod tests` ブロックが肥大化（特に `event/mod.rs` の 370 行超のテスト）
 
 ## Post-MVP
 
